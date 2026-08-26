@@ -14,7 +14,9 @@ Ne fait que ça, volontairement :
 2. **Analyse du toit** — Solar API `buildingInsights`. Hors couverture, l'app bascule en
    mode « délimitation estimée » et le placement reste entièrement manuel.
 3. **Placement des panneaux** — grilles déplaçables, orientables, redimensionnables
-   directement sur la carte ou depuis le panneau latéral.
+   directement sur la carte ou depuis le panneau latéral. Le bouton « Poignées », en bas
+   à droite, masque la flèche de rotation et les boutons + / − pour une vue nette à
+   montrer au client ; le champ reste déplaçable par son point central.
 4. **Export** — plan de toiture en PNG via Maps Static API.
 
 Le formulaire de simulation en 5 étapes, la liste des simulations, les calculs de
@@ -119,8 +121,9 @@ sur la carte et ceux du PNG sortent du même calcul.
 - **`google.maps.Marker`** est déprécié au profit de `AdvancedMarkerElement`. Toujours
   fonctionnel, mais à migrer un jour (nécessite un `mapId`, ce qui exclut les `styles`
   inline actuels).
-- **Contours de toit** — le prototype lisait `boundingBox.lo` / `.hi`, alors que l'API
-  Solar renvoie `sw` / `ne` : les contours ne se dessinaient jamais, l'erreur étant
-  avalée silencieusement. Corrigé, les deux orthographes sont acceptées.
+- **Contours de toit** — le prototype dessinait les segments de toiture renvoyés par
+  l'API Solar sous forme de rectangles jaunes. Ils encombraient la vue et ont été
+  retirés ; seul l'azimut du premier segment est conservé, pour orienter le premier
+  champ dans le sens de la pente.
 - **Pas de persistance** — rien n'est sauvegardé, par choix. Rafraîchir la page repart de
   zéro.

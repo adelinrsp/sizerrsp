@@ -4,7 +4,7 @@ import {
   fieldPanelCorners,
   rotHandlePos,
 } from './geo';
-import type { Field, PanelSpec, RoofSegment } from './types';
+import type { Field, PanelSpec } from './types';
 
 type Handlers = {
   onSelect: (id: string) => void;
@@ -32,7 +32,8 @@ export class FieldLayers {
   private layers = new Map<string, Layer>();
   /** Mirror of the React field state, so drag handlers always see fresh values. */
   private fields = new Map<string, Field>();
-  private roofPolys: google.maps.Polygon[] = [];
+  /** When false, the rotation arrow and +/- steppers are hidden for a clean view. */
+  private handlesVisible = true;
 
   constructor(map: google.maps.Map, spec: PanelSpec, handlers: Handlers) {
     this.map = map;
@@ -43,33 +44,6 @@ export class FieldLayers {
   setSpec(spec: PanelSpec) {
     this.spec = spec;
     this.fields.forEach((field) => this.update(field));
-  }
-
-  drawRoofOutlines(segments: RoofSegment[]) {
-    segments.forEach((seg) => {
-      const bb = seg.boundingBox;
-      const sw = bb?.sw ?? bb?.lo;
-      const ne = bb?.ne ?? bb?.hi;
-      if (!sw || !ne) return;
-      this.roofPolys.push(
-        new google.maps.Polygon({
-          paths: [
-            { lat: sw.latitude, lng: sw.longitude },
-            { lat: sw.latitude, lng: ne.longitude },
-            { lat: ne.latitude, lng: ne.longitude },
-            { lat: ne.latitude, lng: sw.longitude },
-          ],
-          strokeColor: '#FFBE00',
-          strokeOpacity: 0.9,
-          strokeWeight: 2.5,
-          fillColor: '#FFBE00',
-          fillOpacity: 0.1,
-          map: this.map,
-          clickable: false,
-          zIndex: 1,
-        }),
-      );
-    });
   }
 
   add(field: Field) {
@@ -153,7 +127,7 @@ export class FieldLayers {
       return marker;
     };
 
-    this.layers.set(field.id, {
+    const layer: Layer = {
       polys,
       center,
       rotHandle,
@@ -163,7 +137,24 @@ export class FieldLayers {
         rowPlus: makeStepper(eh.rowPlus, 1, 'rows'),
         rowMinus: makeStepper(eh.rowMinus, -1, 'rows'),
       },
-    });
+    };
+    this.layers.set(field.id, layer);
+    if (!this.handlesVisible) this.applyHandleVisibility(layer);
+  }
+
+  /**
+   * Toggles the on-map rotation arrow and +/- steppers. The centre marker stays
+   * so the field can still be dragged, and the sidebar controls are unaffected.
+   */
+  setHandlesVisible(visible: boolean) {
+    this.handlesVisible = visible;
+    this.layers.forEach((layer) => this.applyHandleVisibility(layer));
+  }
+
+  private applyHandleVisibility(layer: Layer) {
+    const target = this.handlesVisible ? this.map : null;
+    layer.rotHandle.setMap(target);
+    Object.values(layer.steppers).forEach((m) => m.setMap(target));
   }
 
   /**
@@ -205,8 +196,6 @@ export class FieldLayers {
   }
 
   clearAll() {
-    this.roofPolys.forEach((p) => p.setMap(null));
-    this.roofPolys = [];
     Array.from(this.layers.keys()).forEach((id) => this.remove(id));
   }
 

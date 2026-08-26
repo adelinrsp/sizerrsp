@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import AddressSearch from './AddressSearch';
 import CompassRose from './CompassRose';
 import EditorSidebar from './EditorSidebar';
+import HandlesToggle from './HandlesToggle';
 import Topbar from './Topbar';
 import { FieldLayers } from '@/lib/fieldLayers';
 import { DEFAULT_PANEL_SPEC, clampGridSide } from '@/lib/geo';
@@ -32,6 +33,7 @@ export default function SolarSizer() {
   const [solarLoading, setSolarLoading] = useState(false);
   const [solarSource, setSolarSource] = useState<SolarSource>(null);
   const [solarMaxPanels, setSolarMaxPanels] = useState(0);
+  const [handlesVisible, setHandlesVisible] = useState(true);
   const [exportBusy, setExportBusy] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -112,6 +114,10 @@ export default function SolarSizer() {
     layersRef.current?.setSpec(panelSpec);
   }, [panelSpec]);
 
+  useEffect(() => {
+    layersRef.current?.setHandlesVisible(handlesVisible);
+  }, [handlesVisible]);
+
   async function fetchSolar(lat: number, lng: number) {
     try {
       const res = await fetch(`/api/solar?lat=${lat}&lng=${lng}`);
@@ -133,7 +139,6 @@ export default function SolarSizer() {
 
       const segments: RoofSegment[] = data.roofSegments || [];
       roofAzimuthRef.current = Math.round(segments[0]?.azimuthDegrees ?? 180);
-      layersRef.current?.drawRoofOutlines(segments);
 
       setSolarSource('api');
       setSolarMaxPanels(data.maxArrayPanelsCount || 0);
@@ -207,6 +212,7 @@ export default function SolarSizer() {
     setSolarMaxPanels(0);
     setExportError(null);
     setPanelSpec(DEFAULT_PANEL_SPEC);
+    setHandlesVisible(true);
   }
 
   function handleAddField() {
@@ -346,6 +352,12 @@ export default function SolarSizer() {
             onExport={handleExport}
           />
           <CompassRose />
+          {fields.length > 0 && (
+            <HandlesToggle
+              visible={handlesVisible}
+              onToggle={() => setHandlesVisible((v) => !v)}
+            />
+          )}
         </>
       )}
     </main>

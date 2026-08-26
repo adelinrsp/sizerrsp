@@ -28,20 +28,9 @@ export type SelectedAddress = AddressSuggestion & {
   lng?: number;
 };
 
-type LatLngDegrees = { latitude: number; longitude: number };
-
+/** Only the azimuth is used, to orient the first field along the main slope. */
 export type RoofSegment = {
   azimuthDegrees?: number;
-  /**
-   * Solar API returns `sw`/`ne`. Older samples (and the original prototype) use
-   * `lo`/`hi`, so both spellings are accepted.
-   */
-  boundingBox?: {
-    sw?: LatLngDegrees;
-    ne?: LatLngDegrees;
-    lo?: LatLngDegrees;
-    hi?: LatLngDegrees;
-  };
 };
 
 export type SolarSource = 'api' | 'fallback' | null;

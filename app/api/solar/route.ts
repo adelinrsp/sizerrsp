@@ -61,12 +61,9 @@ export async function GET(req: Request) {
       panelCapacityWatts: sp.panelCapacityWatts ?? null,
       maxArrayPanelsCount: sp.maxArrayPanelsCount ?? panels.length,
       avgPanelEnergy,
-      roofSegments: (sp.roofSegmentStats || []).map(
-        (seg: { azimuthDegrees?: number; boundingBox?: unknown }) => ({
-          azimuthDegrees: seg.azimuthDegrees,
-          boundingBox: seg.boundingBox,
-        }),
-      ),
+      roofSegments: (sp.roofSegmentStats || []).map((seg: { azimuthDegrees?: number }) => ({
+        azimuthDegrees: seg.azimuthDegrees,
+      })),
     });
   } catch (e) {
     return NextResponse.json({
