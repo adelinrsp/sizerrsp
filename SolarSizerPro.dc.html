@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<script>
+if (!window.__gmScriptLoaded) {
+  window.__gmScriptLoaded = true;
+  window.__gmCb = function(){};
+  var s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://maps.googleapis.com/maps/api/js?key=VOTRE_CLE_GOOGLE_MAPS&libraries=places&callback=__gmCb';
+  document.head.appendChild(s);
+}
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:'DM Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#001D3D;text-decoration:none}a:hover{color:#FFBE00}
+input,select,button,textarea{font-family:inherit}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideInLeft{from{opacity:0;transform:translateX(-20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+
+<div style="position:relative;width:100vw;height:100vh;overflow:hidden;background:#0a1628;">
+
+  <!-- MAP — always in DOM, full screen -->
+  <div id="ssp-map" style="position:absolute;inset:0;z-index:0;background:#e8f0f8;"></div>
+
+  <!-- ═══ TOPBAR ═══ -->
+  <div style="position:absolute;top:0;left:0;right:0;height:56px;background:#001D3D;z-index:300;display:flex;align-items:center;padding:0 20px;gap:12px;box-shadow:0 2px 16px rgba(0,0,0,0.4);border-bottom:2px solid rgba(255,190,0,0.25);">
+    <img src="uploads/brand_file-1783412124036.png" alt="Rhône Solaire Pro" style="height:28px;object-fit:contain;flex-shrink:0;">
+    <div style="width:1px;height:20px;background:rgba(255,255,255,0.18);flex-shrink:0;"></div>
+    <span style="font-size:15px;font-weight:700;color:#FFBE00;letter-spacing:0.04em;">SolarSizerPro</span>
+    <div style="flex:1;"></div>
+    <sc-if value="{{ showBackBtn }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ onHeaderBack }}" style="background:transparent;border:1px solid rgba(255,255,255,0.22);color:rgba(255,255,255,0.82);padding:6px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;" style-hover="background:rgba(255,255,255,0.1);color:#fff;">{{ headerBackLabel }}</button>
+    </sc-if>
+    <sc-if value="{{ notSimList }}" hint-placeholder-val="{{ true }}">
+      <button onClick="{{ onGoToList }}" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.18);color:rgba(255,255,255,0.88);padding:6px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;display:flex;align-items:center;gap:7px;" style-hover="background:rgba(255,255,255,0.15);">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"></rect><rect x="8" y="1" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"></rect><rect x="1" y="8" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"></rect><rect x="8" y="8" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.4"></rect></svg>
+        Simulations · {{ simCount }}
+      </button>
+    </sc-if>
+    <sc-if value="{{ isSimList }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ onNewSim }}" style="background:#FFBE00;border:none;color:#001D3D;padding:7px 16px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:700;" style-hover="background:#ffd040;">+ Nouveau projet</button>
+    </sc-if>
+  </div>
+
+  <!-- ═══ MAP VIEW ═══ -->
+  <sc-if value="{{ isMapView }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;top:56px;left:0;right:0;bottom:0;z-index:100;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.5s ease;">
+      <div style="width:560px;max-width:calc(100vw - 48px);background:white;border-radius:18px;box-shadow:0 12px 48px rgba(0,29,61,0.28);padding:40px 44px;animation:fadeUp 0.5s ease;">
+        <div style="text-align:center;margin-bottom:32px;">
+          <div style="display:inline-flex;align-items:center;gap:6px;background:#FFF8E1;border:1px solid rgba(255,190,0,0.35);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:#9a6f00;letter-spacing:0.07em;text-transform:uppercase;margin-bottom:14px;">
+            <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#FFBE00"></circle></svg>
+            Dimensionnement solaire
+          </div>
+          <h1 style="font-size:26px;font-weight:700;color:#001D3D;margin:0 0 8px;line-height:1.2;">Où installer les panneaux ?</h1>
+          <p style="font-size:14px;color:#667788;margin:0;">Entrez l'adresse du client pour analyser son toit via Google Solar API.</p>
+        </div>
+        <div style="position:relative;">
+          <div style="position:absolute;left:14px;top:50%;transform:translateY(-50%);pointer-events:none;">
+            <svg width="17" height="17" viewBox="0 0 20 20" fill="none"><circle cx="8.5" cy="8.5" r="5.5" stroke="#94a3b8" stroke-width="1.8"></circle><path d="M13.5 13.5L17 17" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round"></path></svg>
+          </div>
+          <input type="text" placeholder="Ex. 42 Rue de la République, Lyon" value="{{ searchQuery }}" onChange="{{ onSearchInput }}" onBlur="{{ onSearchBlur }}" style="width:100%;height:52px;padding:0 16px 0 44px;border:2px solid #e2eaf2;border-radius:11px;font-size:15px;color:#001D3D;outline:none;transition:border-color 0.15s;" style-focus="border-color:#FFBE00;box-shadow:0 0 0 3px rgba(255,190,0,0.12);">
+          <sc-if value="{{ showResults }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;top:calc(100% + 6px);left:0;right:0;background:white;border:1.5px solid #e2eaf2;border-radius:11px;box-shadow:0 8px 28px rgba(0,29,61,0.14);overflow:hidden;z-index:500;">
+              <sc-for list="{{ searchResults }}" as="result" hint-placeholder-count="4">
+                <div onClick="{{ result.onClick }}" style="padding:12px 16px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f1f5f9;" style-hover="background:#f8fafc;">
+                  <svg width="11" height="14" viewBox="0 0 11 14" fill="none" style="flex-shrink:0;"><path d="M5.5 0C3.02 0 1 2.02 1 4.5c0 3.4 4.5 9.5 4.5 9.5s4.5-6.1 4.5-9.5C10 2.02 7.98 0 5.5 0z" fill="#FFBE00"></path><circle cx="5.5" cy="4.5" r="1.8" fill="#001D3D"></circle></svg>
+                  <div style="font-size:14px;font-weight:500;color:#001D3D;line-height:1.3;">{{ result.label }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div>
+        <p style="font-size:11px;color:#b0bec8;text-align:center;margin:16px 0 0;">
+          <svg width="10" height="10" viewBox="0 0 20 20" style="vertical-align:middle;margin-right:3px;"><path d="M10 0C4.48 0 0 4.48 0 10s4.48 10 10 10 10-4.48 10-10S15.52 0 10 0zm4.17 14.17L9 11V5h1.5v5.25l4.5 2.67-1.33 2.25z" fill="#4285F4"></path></svg>
+          Google Maps · Places API · Solar API
+        </p>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ═══ EDITOR VIEW — Left sidebar ═══ -->
+  <sc-if value="{{ isEditorView }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;top:56px;bottom:0;width:340px;background:#001D3D;z-index:200;display:flex;flex-direction:column;overflow:hidden;animation:slideInLeft 0.3s ease;box-shadow:4px 0 32px rgba(0,0,0,0.45);">
+
+      <!-- Address -->
+      <div style="padding:18px 20px 14px;border-bottom:1px solid rgba(255,255,255,0.09);">
+        <div style="font-size:10px;font-weight:600;color:#FFBE00;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:5px;">Adresse sélectionnée</div>
+        <div style="font-size:13px;font-weight:500;color:white;line-height:1.4;">{{ selectedAddressLabel }}</div>
+      </div>
+
+      <!-- Solar detection status -->
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.09);">
+        <div style="font-size:10px;font-weight:600;color:#FFBE00;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:10px;">Analyse Google Solar</div>
+
+        <!-- Loading -->
+        <sc-if value="{{ solarLoading }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,190,0,0.08);border:1px solid rgba(255,190,0,0.2);border-radius:8px;">
+            <div style="width:13px;height:13px;border:2px solid rgba(255,190,0,0.25);border-top-color:#FFBE00;border-radius:50%;animation:spin 0.75s linear infinite;flex-shrink:0;"></div>
+            <span style="font-size:12px;color:rgba(255,255,255,0.72);">Interrogation de l'API Solar…</span>
+          </div>
+        </sc-if>
+
+        <!-- Solar API success -->
+        <sc-if value="{{ solarFromAPI }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:flex-start;gap:8px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.28);border-radius:8px;padding:10px 12px;">
+            <div style="width:7px;height:7px;background:#4ade80;border-radius:50%;flex-shrink:0;margin-top:3px;box-shadow:0 0 8px rgba(74,222,128,0.7);"></div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.9);">Toit analysé — Google Solar API</div>
+              <div style="font-size:10px;color:rgba(255,190,0,0.75);margin-top:2px;">{{ solarInfo }}</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- Fallback -->
+        <sc-if value="{{ solarFallback }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.28);border-radius:8px;padding:9px 12px;">
+            <div style="width:7px;height:7px;background:#fbbf24;border-radius:50%;flex-shrink:0;"></div>
+            <span style="font-size:12px;font-weight:500;color:rgba(255,255,255,0.8);">Délimitation estimée (hors couverture)</span>
+          </div>
+        </sc-if>
+
+        <p style="font-size:11px;color:rgba(255,255,255,0.35);line-height:1.5;margin:8px 0 0;">Ajoutez un champ de panneaux puis faites-le glisser sur le toit. Ajustez lignes, colonnes et rotation.</p>
+      </div>
+
+      <!-- Fields management -->
+      <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.09);flex:1;overflow-y:auto;min-height:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <div style="font-size:10px;font-weight:600;color:#FFBE00;letter-spacing:0.1em;text-transform:uppercase;">Champs de panneaux</div>
+          <button onClick="{{ onAddField }}" style="background:#FFBE00;border:none;color:#001D3D;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;display:flex;align-items:center;gap:5px;" style-hover="background:#ffd040;">
+            <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 1v10M1 6h10" stroke="#001D3D" stroke-width="2" stroke-linecap="round"></path></svg>
+            Champ
+          </button>
+        </div>
+
+        <sc-if value="{{ noFields }}" hint-placeholder-val="{{ true }}">
+          <div style="text-align:center;padding:22px 10px;background:rgba(255,255,255,0.05);border:1px dashed rgba(255,255,255,0.15);border-radius:9px;">
+            <p style="font-size:12px;color:rgba(255,255,255,0.4);margin:0;line-height:1.5;">Aucun champ. Cliquez sur « + Champ » pour placer une première grille de panneaux sur le toit.</p>
+          </div>
+        </sc-if>
+
+        <sc-for list="{{ mappedFields }}" as="f" hint-placeholder-count="1">
+          <div onClick="{{ f.onSelect }}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;background:{{ f.bg }};border:1px solid {{ f.bd }};border-radius:8px;margin-bottom:8px;cursor:pointer;">
+            <div>
+              <div style="font-size:12px;font-weight:600;color:white;">{{ f.label }}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:2px;">{{ f.rows }}×{{ f.cols }} · {{ f.count }} panneaux · {{ f.rotation }}°</div>
+            </div>
+            <button onClick="{{ f.onDelete }}" style="background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.3);color:#fca5a5;width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:14px;flex-shrink:0;" style-hover="background:rgba(220,38,38,0.28);">×</button>
+          </div>
+        </sc-for>
+
+        <sc-if value="{{ hasSelectedField }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px;padding:14px;background:rgba(255,255,255,0.05);border-radius:9px;border:1px solid rgba(255,255,255,0.1);">
+            <div style="font-size:10px;font-weight:600;color:#FFBE00;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;">Réglage — {{ selFieldLabel }}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+              <div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;">Lignes</div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button onClick="{{ onDecRows }}" style="width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;cursor:pointer;font-size:15px;">−</button>
+                  <span style="font-size:15px;font-weight:700;color:white;min-width:18px;text-align:center;">{{ selRows }}</span>
+                  <button onClick="{{ onIncRows }}" style="width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;cursor:pointer;font-size:15px;">+</button>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;">Colonnes</div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <button onClick="{{ onDecCols }}" style="width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;cursor:pointer;font-size:15px;">−</button>
+                  <span style="font-size:15px;font-weight:700;color:white;min-width:18px;text-align:center;">{{ selCols }}</span>
+                  <button onClick="{{ onIncCols }}" style="width:28px;height:28px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.08);color:white;cursor:pointer;font-size:15px;">+</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;">Rotation — {{ selRotation }}°</div>
+              <input type="range" min="0" max="359" value="{{ selRotation }}" onChange="{{ onRotation }}" style="width:100%;accent-color:#FFBE00;cursor:pointer;">
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <!-- Totals -->
+      <div style="padding:14px 20px;border-bottom:1px solid rgba(255,255,255,0.09);">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
+          <div style="background:rgba(255,255,255,0.07);border-radius:8px;padding:10px 8px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Panneaux</div>
+            <div style="font-size:18px;font-weight:700;color:white;line-height:1;">{{ panelCount }}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.07);border-radius:8px;padding:10px 8px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Puissance</div>
+            <div style="font-size:18px;font-weight:700;color:white;line-height:1;">{{ panelPower }}<span style="font-size:10px;color:rgba(255,255,255,0.45);font-weight:400;"> kWc</span></div>
+          </div>
+          <div style="background:rgba(255,255,255,0.07);border-radius:8px;padding:10px 8px;">
+            <div style="font-size:9px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Surface</div>
+            <div style="font-size:18px;font-weight:700;color:white;line-height:1;">{{ panelArea }}<span style="font-size:10px;color:rgba(255,255,255,0.45);font-weight:400;"> m²</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div style="padding:14px 20px 20px;">
+        <button onClick="{{ onExport }}" style="width:100%;height:42px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.22);color:white;border-radius:10px;font-size:13px;font-weight:600;cursor:{{ ctaCursor }};display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:9px;" style-hover="background:rgba(255,255,255,0.18);">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 10V2M8 10l-3-3M8 10l3-3M2.5 12.5h11" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          {{ ctaLabel }}
+        </button>
+        <button onClick="{{ onStartSim }}" style="width:100%;height:48px;background:{{ ctaBg }};border:none;color:#001D3D;border-radius:10px;font-size:15px;font-weight:700;cursor:{{ ctaCursor }};display:flex;align-items:center;justify-content:center;gap:8px;" style-hover="filter:brightness(1.08);">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="#001D3D" stroke-width="2.5" stroke-linecap="round"></path></svg>
+          Créer une simulation
+        </button>
+        <sc-if value="{{ noPanels }}" hint-placeholder-val="{{ false }}">
+          <p style="font-size:11px;color:rgba(255,190,0,0.55);text-align:center;margin:8px 0 0;">Ajoutez au moins un champ de panneaux</p>
+        </sc-if>
+        <sc-if value="{{ exportError }}" hint-placeholder-val="{{ false }}">
+          <p style="font-size:11px;color:#fca5a5;line-height:1.5;margin:9px 0 0;padding:9px 11px;background:rgba(220,38,38,0.14);border:1px solid rgba(220,38,38,0.3);border-radius:7px;">{{ exportError }}</p>
+        </sc-if>
+      </div>
+
+    </div>
+
+    <!-- Compass rose — map is north-up, helps orient panel rotation -->
+    <div style="position:absolute;right:20px;top:76px;width:76px;height:76px;z-index:150;background:rgba(0,29,61,0.72);border:1px solid rgba(255,255,255,0.25);border-radius:50%;backdrop-filter:blur(4px);pointer-events:none;">
+      <span style="position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:700;color:#FFBE00;">N</span>
+      <span style="position:absolute;bottom:3px;left:50%;transform:translateX(-50%);font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);">S</span>
+      <span style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);">E</span>
+      <span style="position:absolute;left:4px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);">O</span>
+      <svg width="76" height="76" viewBox="0 0 76 76" style="position:absolute;inset:0;">
+        <line x1="38" y1="14" x2="38" y2="62" stroke="rgba(255,255,255,0.3)" stroke-width="1"></line>
+        <line x1="14" y1="38" x2="62" y2="38" stroke="rgba(255,255,255,0.3)" stroke-width="1"></line>
+        <path d="M38 16 L33 30 L38 26 L43 30 Z" fill="#FFBE00"></path>
+      </svg>
+    </div>
+  </sc-if>
+
+  <!-- ═══ SIMULATION FORM ═══ -->
+  <sc-if value="{{ isSimForm }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;top:56px;background:rgba(0,8,24,0.74);z-index:400;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease;">
+      <div style="width:600px;max-width:calc(100vw - 48px);max-height:calc(100vh - 88px);background:white;border-radius:18px;box-shadow:0 24px 72px rgba(0,0,0,0.45);display:flex;flex-direction:column;overflow:hidden;">
+        <div style="padding:26px 32px 0;flex-shrink:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+            <span style="font-size:11px;font-weight:600;color:#FFBE00;letter-spacing:0.08em;text-transform:uppercase;">{{ panelCount }} panneaux · {{ panelPower }} kWc</span>
+            <span style="font-size:11px;color:#94a3b8;font-weight:500;">Étape {{ stepDisplay }} / 4</span>
+          </div>
+          <div style="display:flex;gap:5px;margin-bottom:22px;">
+            <div style="height:4px;flex:1;border-radius:2px;background:{{ d1 }};transition:background 0.3s;"></div>
+            <div style="height:4px;flex:1;border-radius:2px;background:{{ d2 }};transition:background 0.3s;"></div>
+            <div style="height:4px;flex:1;border-radius:2px;background:{{ d3 }};transition:background 0.3s;"></div>
+            <div style="height:4px;flex:1;border-radius:2px;background:{{ d4 }};transition:background 0.3s;"></div>
+          </div>
+          <h2 style="font-size:20px;font-weight:700;color:#001D3D;margin:0 0 4px;">{{ stepTitle }}</h2>
+          <p style="font-size:13px;color:#667788;margin:0 0 20px;">{{ stepSub }}</p>
+          <div style="height:1px;background:#f0f4f8;"></div>
+        </div>
+
+        <div style="padding:24px 32px;flex:1;overflow-y:auto;">
+
+          <!-- STEP 0: Client -->
+          <div style="display:{{ s0 }};">
+            <div style="display:flex;flex-direction:column;gap:16px;">
+              <div>
+                <label style="font-size:11px;font-weight:600;color:#001D3D;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Nom du client *</label>
+                <input type="text" value="{{ sd.clientName }}" onChange="{{ hName }}" placeholder="Ex. Famille Martin" style="width:100%;height:44px;padding:0 14px;border:1.5px solid #dde8f2;border-radius:8px;font-size:14px;color:#001D3D;outline:none;" style-focus="border-color:#FFBE00;box-shadow:0 0 0 3px rgba(255,190,0,0.1);">
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:#001D3D;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Email</label>
+                  <input type="email" value="{{ sd.clientEmail }}" onChange="{{ hEmail }}" placeholder="client@email.fr" style="width:100%;height:44px;padding:0 14px;border:1.5px solid #dde8f2;border-radius:8px;font-size:14px;color:#001D3D;outline:none;" style-focus="border-color:#FFBE00;">
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:#001D3D;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Téléphone</label>
+                  <input type="tel" value="{{ sd.clientPhone }}" onChange="{{ hPhone }}" placeholder="06 12 34 56 78" style="width:100%;height:44px;padding:0 14px;border:1.5px solid #dde8f2;border-radius:8px;font-size:14px;color:#001D3D;outline:none;" style-focus="border-color:#FFBE00;">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 1: Consommation -->
+          <div style="display:{{ s1 }};">
+            <div style="display:flex;flex-direction:column;gap:16px;">
+              <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:11px 14px;">
+                <p style="font-size:12px;color:#0369a1;margin:0;line-height:1.5;">💡 Laissez vide si inconnu — nous estimerons la consommation à partir des informations du foyer.</p>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:#001D3D;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Consommation annuelle</label>
+                  <div style="position:relative;">
+                    <input type="number" value="{{ sd.annualKwh }}" onChange="{{ hKwh }}" placeholder="4 500" style="width:100%;height:44px;padding:0 44px 0 14px;border:1.5px solid #dde8f2;border-radius:8px;font-size:14px;color:#001D3D;outline:none;" style-focus="border-color:#FFBE00;">
+                    <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:#94a3b8;pointer-events:none;">kWh</span>
+                  </div>
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:#001D3D;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Facture mensuelle</label>
+                  <div style="position:relative;">
+                    <input type="number" value="{{ sd.monthlyBill }}" onChange="{{ hBill }}" placeholder="120" style="width:100%;height:44px;padding:0 30px 0 14px;border:1.5px solid #dde8f2;border-radius:8px;font-size:14px;color:#001D3D;outline:none;" style-focus="border-color:#FFBE00;">
+                    <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;color:#94a3b8;pointer-events:none;">€</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 2: Foyer -->
+          <div style="display:{{ s2 }};">
+            <div style="display:flex;flex-direction:column;gap:20px;">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:#001D3D;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Personnes dans le foyer</label>
+                  <select value="{{ sd.householdSize }}" onChange="{{ hSize }}" style="width:100%;height:44px;padding:0 14px;border:1.5px solid #dde8f2;border-radius:8px;font-size:14px;color:#001D3D;outline:none;background:white;cursor:pointer;" style-focus="border-color:#FFBE00;">
+                    <option value="1">1 personne</option><option value="2">2 personnes</option><option value="3">3 personnes</option><option value="4">4 personnes</option><option value="5">5 personnes</option><option value="6">6 personnes ou +</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="font-size:11px;font-weight:600;color:#001D3D;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Chauffage principal</label>
+                  <select value="{{ sd.heatingType }}" onChange="{{ hHeat }}" style="width:100%;height:44px;padding:0 14px;border:1.5px solid #dde8f2;border-radius:8px;font-size:14px;color:#001D3D;outline:none;background:white;cursor:pointer;" style-focus="border-color:#FFBE00;">
+                    <option value="gaz">Gaz naturel</option><option value="fioul">Fioul</option><option value="electricite">Électricité</option><option value="pac">Pompe à chaleur</option><option value="bois">Bois / Poêle</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:600;color:#001D3D;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:10px;">Équipements énergivores</label>
+                <div style="border:1.5px solid #dde8f2;border-radius:10px;overflow:hidden;">
+                  <div onClick="{{ hToggleEV }}" style="display:flex;align-items:center;padding:14px 16px;background:white;cursor:pointer;gap:14px;" style-hover="background:#f8fafc;">
+                    <div style="width:42px;height:24px;background:{{ evBg }};border-radius:12px;position:relative;flex-shrink:0;transition:background 0.2s;"><div style="position:absolute;top:3px;width:18px;height:18px;background:white;border-radius:50%;transition:transform 0.2s;transform:{{ evPos }};box-shadow:0 1px 4px rgba(0,0,0,0.18);"></div></div>
+                    <div><div style="font-size:14px;font-weight:500;color:#001D3D;">Véhicule électrique</div><div style="font-size:11px;color:#667788;">+2 500 kWh/an estimé</div></div>
+                  </div>
+                  <div onClick="{{ hToggleAC }}" style="display:flex;align-items:center;padding:14px 16px;background:white;cursor:pointer;gap:14px;border-top:1px solid #f1f5f9;" style-hover="background:#f8fafc;">
+                    <div style="width:42px;height:24px;background:{{ acBg }};border-radius:12px;position:relative;flex-shrink:0;transition:background 0.2s;"><div style="position:absolute;top:3px;width:18px;height:18px;background:white;border-radius:50%;transition:transform 0.2s;transform:{{ acPos }};box-shadow:0 1px 4px rgba(0,0,0,0.18);"></div></div>
+                    <div><div style="font-size:14px;font-weight:500;color:#001D3D;">Climatisation</div><div style="font-size:11px;color:#667788;">+800 kWh/an estimé</div></div>
+                  </div>
+                  <div onClick="{{ hToggleHW }}" style="display:flex;align-items:center;padding:14px 16px;background:white;cursor:pointer;gap:14px;border-top:1px solid #f1f5f9;" style-hover="background:#f8fafc;">
+                    <div style="width:42px;height:24px;background:{{ hwBg }};border-radius:12px;position:relative;flex-shrink:0;transition:background 0.2s;"><div style="position:absolute;top:3px;width:18px;height:18px;background:white;border-radius:50%;transition:transform 0.2s;transform:{{ hwPos }};box-shadow:0 1px 4px rgba(0,0,0,0.18);"></div></div>
+                    <div><div style="font-size:14px;font-weight:500;color:#001D3D;">Chauffe-eau électrique</div><div style="font-size:11px;color:#667788;">+1 200 kWh/an estimé</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 3: Toit -->
+          <div style="display:{{ s3 }};">
+            <div style="display:flex;flex-direction:column;gap:20px;">
+              <div>
+                <label style="font-size:11px;font-weight:600;color:#001D3D;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Orientation du toit</label>
+                <select value="{{ sd.roofOrientation }}" onChange="{{ hOrient }}" style="width:100%;height:44px;padding:0 14px;border:1.5px solid #dde8f2;border-radius:8px;font-size:14px;color:#001D3D;outline:none;background:white;cursor:pointer;" style-focus="border-color:#FFBE00;">
+                  <option value="Sud">Sud — optimal</option><option value="Sud-Est">Sud-Est</option><option value="Sud-Ouest">Sud-Ouest</option><option value="Est">Est</option><option value="Ouest">Ouest</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:600;color:#001D3D;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:10px;">Inclinaison — {{ sd.roofTilt }}°</label>
+                <input type="range" min="10" max="60" value="{{ sd.roofTilt }}" onChange="{{ hTilt }}" style="width:100%;accent-color:#FFBE00;cursor:pointer;">
+                <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-top:5px;"><span>10° plat</span><span style="color:#FFBE00;font-weight:600;">30° optimal</span><span>60° pentu</span></div>
+              </div>
+              <div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;">
+                <p style="font-size:12px;color:#92400e;margin:0;line-height:1.5;">☀️ Pour la région Rhône, une exposition <strong>Sud à 30°</strong> maximise la production. Un écart de 15° réduit l'efficacité de 5–10 %.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 4: Résultats -->
+          <div style="display:{{ s4 }};">
+            <div style="display:flex;flex-direction:column;gap:14px;">
+              <div style="background:linear-gradient(135deg,#001D3D 0%,#00346e 100%);border-radius:12px;padding:20px 22px;">
+                <div style="font-size:12px;font-weight:600;color:rgba(255,190,0,0.9);letter-spacing:0.05em;margin-bottom:2px;">{{ sd.clientName }}</div>
+                <div style="font-size:12px;color:rgba(255,255,255,0.55);margin-bottom:14px;">{{ selectedAddressLabel }}</div>
+                <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                  <div><div style="font-size:26px;font-weight:700;color:#FFBE00;line-height:1;">{{ res.totalPowerKwc }}</div><div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px;">kWc installés</div></div>
+                  <div style="width:1px;background:rgba(255,255,255,0.12);"></div>
+                  <div><div style="font-size:26px;font-weight:700;color:white;line-height:1;">{{ res.panelCount }}</div><div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px;">panneaux</div></div>
+                  <div style="width:1px;background:rgba(255,255,255,0.12);"></div>
+                  <div><div style="font-size:26px;font-weight:700;color:white;line-height:1;">{{ sd.roofOrientation }}</div><div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px;">orientation</div></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;">
+                <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:14px 12px;"><div style="font-size:10px;font-weight:600;color:#2563eb;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">Production</div><div style="font-size:21px;font-weight:700;color:#001D3D;line-height:1;">{{ res.annualProduction }}</div><div style="font-size:11px;color:#667788;margin-top:2px;">kWh / an</div></div>
+                <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:14px 12px;"><div style="font-size:10px;font-weight:600;color:#16a34a;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">Économies</div><div style="font-size:21px;font-weight:700;color:#001D3D;line-height:1;">{{ res.annualSavings }} €</div><div style="font-size:11px;color:#667788;margin-top:2px;">par an</div></div>
+                <div style="background:#fefce8;border:1.5px solid #fde68a;border-radius:10px;padding:14px 12px;"><div style="font-size:10px;font-weight:600;color:#d97706;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">Autoconso.</div><div style="font-size:21px;font-weight:700;color:#001D3D;line-height:1;">{{ res.selfConsRate }}%</div><div style="font-size:11px;color:#667788;margin-top:2px;">taux</div></div>
+                <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;padding:14px 12px;"><div style="font-size:10px;font-weight:600;color:#ea580c;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">Retour invest.</div><div style="font-size:21px;font-weight:700;color:#001D3D;line-height:1;">{{ res.roi }} ans</div><div style="font-size:11px;color:#667788;margin-top:2px;">ROI estimé</div></div>
+                <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:14px 12px;"><div style="font-size:10px;font-weight:600;color:#15803d;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">CO₂ évité</div><div style="font-size:21px;font-weight:700;color:#001D3D;line-height:1;">{{ res.co2 }}</div><div style="font-size:11px;color:#667788;margin-top:2px;">kg / an</div></div>
+                <div style="background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:10px;padding:14px 12px;"><div style="font-size:10px;font-weight:600;color:#7c3aed;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px;">Coût estimé</div><div style="font-size:21px;font-weight:700;color:#001D3D;line-height:1;">{{ res.costK }} k€</div><div style="font-size:11px;color:#667788;margin-top:2px;">installation</div></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div style="padding:16px 32px 22px;border-top:1px solid #f0f4f8;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+          <button onClick="{{ onPrev }}" style="background:transparent;border:1.5px solid #dde8f2;color:#667788;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;" style-hover="border-color:#001D3D;color:#001D3D;">← Retour</button>
+          <button onClick="{{ onNext }}" style="background:#001D3D;border:none;color:white;padding:10px 26px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;min-width:120px;" style-hover="background:#002d5a;">{{ nextLabel }} →</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ═══ SIMULATIONS LIST ═══ -->
+  <sc-if value="{{ isSimList }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;top:56px;background:#F0F4F8;z-index:250;overflow-y:auto;animation:fadeIn 0.25s ease;">
+      <div style="padding:28px 32px 18px;display:flex;align-items:flex-end;justify-content:space-between;">
+        <div>
+          <h2 style="font-size:22px;font-weight:700;color:#001D3D;margin:0 0 4px;">Mes simulations</h2>
+          <p style="font-size:13px;color:#667788;margin:0;">{{ simCount }} simulation{{ simS }} enregistrée{{ simS }}</p>
+        </div>
+      </div>
+      <sc-if value="{{ noSims }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;padding:80px 20px;text-align:center;">
+          <div style="width:72px;height:72px;background:rgba(255,190,0,0.14);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:20px;"><svg width="34" height="34" viewBox="0 0 34 34" fill="none"><path d="M17 3L3 10v14l14 7 14-7V10L17 3z" stroke="#FFBE00" stroke-width="2" fill="rgba(255,190,0,0.15)"></path><path d="M17 12v10M11 15.5L17 12l6 3.5" stroke="#FFBE00" stroke-width="1.5" stroke-linecap="round"></path></svg></div>
+          <h3 style="font-size:17px;font-weight:600;color:#001D3D;margin:0 0 8px;">Aucune simulation</h3>
+          <p style="font-size:13px;color:#667788;margin:0 0 22px;max-width:280px;">Commencez par rechercher l'adresse d'un client pour dimensionner son installation.</p>
+          <button onClick="{{ onNewSim }}" style="background:#FFBE00;border:none;color:#001D3D;padding:12px 24px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;" style-hover="background:#ffd040;">Créer une simulation</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{ hasSims }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:0 32px 40px;display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">
+          <sc-for list="{{ mappedSims }}" as="sim" hint-placeholder-count="3">
+            <div style="background:white;border-radius:12px;border:1px solid rgba(0,29,61,0.08);box-shadow:0 2px 8px rgba(0,29,61,0.07);display:flex;flex-direction:column;overflow:hidden;">
+              <div style="padding:16px 18px 12px;border-bottom:1px solid #f1f5f9;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:5px;">
+                  <div style="font-size:14px;font-weight:700;color:#001D3D;line-height:1.3;flex:1;">{{ sim.clientName }}</div>
+                  <span style="font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:{{ sim.stBg }};color:{{ sim.stCol }};flex-shrink:0;letter-spacing:0.04em;text-transform:uppercase;">{{ sim.status }}</span>
+                </div>
+                <div style="font-size:12px;color:#667788;display:flex;align-items:center;gap:5px;"><svg width="9" height="11" viewBox="0 0 9 11" fill="none"><path d="M4.5 0C3.12 0 2 1.12 2 2.5c0 2.1 2.5 6.5 2.5 6.5S7 4.6 7 2.5C7 1.12 5.88 0 4.5 0z" fill="#FFBE00"></path></svg>{{ sim.address }}</div>
+              </div>
+              <div style="padding:12px 18px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex:1;">
+                <div style="text-align:center;padding:8px 4px;background:#f8fafc;border-radius:7px;"><div style="font-size:15px;font-weight:700;color:#001D3D;line-height:1;">{{ sim.panelCount }}</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;">pann.</div></div>
+                <div style="text-align:center;padding:8px 4px;background:#f8fafc;border-radius:7px;"><div style="font-size:15px;font-weight:700;color:#001D3D;line-height:1;">{{ sim.totalPowerKwc }}</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;">kWc</div></div>
+                <div style="text-align:center;padding:8px 4px;background:#f0fdf4;border-radius:7px;"><div style="font-size:15px;font-weight:700;color:#16a34a;line-height:1;">{{ sim.annualSavings }}€</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;">/an</div></div>
+                <div style="text-align:center;padding:8px 4px;background:#f8fafc;border-radius:7px;"><div style="font-size:15px;font-weight:700;color:#001D3D;line-height:1;">{{ sim.roi }}</div><div style="font-size:9px;color:#94a3b8;margin-top:2px;text-transform:uppercase;letter-spacing:0.04em;">ans ROI</div></div>
+              </div>
+              <div style="padding:10px 18px 14px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid #f1f5f9;">
+                <span style="font-size:11px;color:#94a3b8;">{{ sim.date }}</span>
+                <div style="display:flex;gap:6px;">
+                  <button onClick="{{ sim.onShare }}" style="background:#f4f8fc;border:1px solid #dde8f2;color:#001D3D;padding:5px 11px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:500;display:flex;align-items:center;gap:4px;" style-hover="background:#e8f0f8;"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M8 1l3 3-3 3M1 6v1.5A1.5 1.5 0 002.5 9H7M11 4H6a2 2 0 00-2 2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></path></svg>Partager</button>
+                  <button onClick="{{ sim.onDelete }}" style="background:#fff5f5;border:1px solid #fecaca;color:#dc2626;padding:5px 9px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;" style-hover="background:#fee2e2;">×</button>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <!-- Toast -->
+  <sc-if value="{{ showToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);background:#001D3D;color:white;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:500;z-index:600;box-shadow:0 4px 16px rgba(0,0,0,0.25);display:flex;align-items:center;gap:8px;white-space:nowrap;">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="#4ade80" stroke-width="1.5"></circle><path d="M4 7l2.2 2.2L10 4.5" stroke="#4ade80" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      Lien copié dans le presse-papiers !
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    view: 'map',
+    searchQuery: '', searchResults: [], showResults: false,
+    selectedAddress: null,
+    fields: [], selectedFieldId: null,
+    solarLoading: false, solarSource: null, solarMaxPanels: 0,
+    simStep: 0,
+    sd: {
+      clientName:'', clientEmail:'', clientPhone:'',
+      annualKwh:'', monthlyBill:'',
+      householdSize:'3', heatingType:'gaz',
+      hasEV:false, hasAC:false, hasHotWater:true,
+      roofOrientation:'Sud', roofTilt:'30',
+    },
+    simulations: [], showToast: false, exportError: null, exportBusy: false,
+  };
+
+  mapInst = null;
+  roofPolys = [];
+  fieldLayers = {};
+  lastSolarSegments = [];
+  avgPanelEnergy = 0;
+  searchTimer = null;
+  panTimer = null;
+  sPH = 1.7; sPW = 1.05; sPCapW = 450;
+
+  API_KEY = 'VOTRE_CLE_GOOGLE_MAPS';
+
+  componentDidMount() {
+    this.waitForGoogle();
+    try {
+      const raw = localStorage.getItem('ssp_v3');
+      if (raw) this.setState({ simulations: JSON.parse(raw) });
+      else { const d = this.seedDemos(); localStorage.setItem('ssp_v3', JSON.stringify(d)); this.setState({ simulations: d }); }
+    } catch(e) {}
+  }
+
+  seedDemos() {
+    return [
+      { id:'D001', date:'12/06/2025', clientName:'Famille Martin', clientEmail:'martin@example.fr', address:'42 Rue de la République, 69001 Lyon', panelCount:18, totalPowerKwc:'7.20', annualProduction:9720, selfConsRate:67, annualSavings:1638, roi:13, costK:'20.9', co2:583, shareUrl:'https://solarsizerpro.rhonesolaire.fr/sim/D001', status:'Envoyé' },
+      { id:'D002', date:'28/06/2025', clientName:'M. Dubois Pierre', clientEmail:'p.dubois@gmail.com', address:'8 Allée des Pins, 69100 Villeurbanne', panelCount:12, totalPowerKwc:'4.80', annualProduction:6480, selfConsRate:59, annualSavings:964, roi:14, costK:'13.9', co2:389, shareUrl:'https://solarsizerpro.rhonesolaire.fr/sim/D002', status:'En cours' },
+      { id:'D003', date:'04/07/2025', clientName:'Mme Lefebvre Sophie', clientEmail:'lefebvre@mail.fr', address:'15 Place des Terreaux, 69001 Lyon', panelCount:20, totalPowerKwc:'8.00', annualProduction:10800, selfConsRate:68, annualSavings:1838, roi:12, costK:'23.2', co2:648, shareUrl:'https://solarsizerpro.rhonesolaire.fr/sim/D003', status:'Finalisé' },
+    ];
+  }
+
+  waitForGoogle() {
+    if (window.google && window.google.maps) { this.initMap(); }
+    else { setTimeout(() => this.waitForGoogle(), 150); }
+  }
+
+  initMap() {
+    if (this.mapInst) return;
+    const el = document.getElementById('ssp-map');
+    if (!el) { setTimeout(() => this.initMap(), 100); return; }
+    this.mapInst = new google.maps.Map(el, {
+      center: { lat: 46.7, lng: 2.3 },
+      zoom: 6,
+      mapTypeId: 'roadmap',
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+      zoomControl: true,
+      zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
+      gestureHandling: 'greedy',
+      styles: [
+        { elementType:'geometry', stylers:[{color:'#e8f0f8'}] },
+        { featureType:'water', elementType:'geometry', stylers:[{color:'#c8ddf0'}] },
+        { featureType:'road', elementType:'geometry', stylers:[{color:'#ffffff'}] },
+        { featureType:'road', elementType:'geometry.stroke', stylers:[{color:'#d8e4ee'}] },
+        { featureType:'administrative', elementType:'geometry.stroke', stylers:[{color:'#c4d4e4'}] },
+        { featureType:'poi', stylers:[{visibility:'off'}] },
+        { featureType:'transit', stylers:[{visibility:'off'}] },
+      ],
+    });
+  }
+
+  handleSearchInput(e) {
+    const q = e.target.value;
+    this.setState({ searchQuery: q });
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    if (q.length < 2) { this.setState({ showResults:false }); return; }
+    this.searchTimer = setTimeout(() => this.fetchAddr(q), 320);
+  }
+
+  async fetchAddr(q) {
+    try {
+      const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': this.API_KEY,
+          'X-Goog-FieldMask': 'suggestions.placePrediction.text,suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat',
+        },
+        body: JSON.stringify({ input: q, includedRegionCodes:['fr'], languageCode:'fr' }),
+      });
+      const data = await res.json();
+      const results = (data.suggestions || []).map(s => {
+        const pp = s.placePrediction;
+        return { label: pp?.text?.text || pp?.structuredFormat?.mainText?.text || '', placeId: pp?.placeId || '' };
+      }).filter(r => r.label && r.placeId);
+      results.forEach(r => { r.onClick = () => this.selectAddr(r); });
+      this.setState({ searchResults: results, showResults: results.length > 0 });
+    } catch(e) { console.warn('Places API:', e); }
+  }
+
+  onSearchBlur() { setTimeout(() => this.setState({ showResults:false }), 200); }
+
+  async selectAddr(result) {
+    this.setState({
+      selectedAddress: { label: result.label, placeId: result.placeId },
+      searchQuery: result.label, showResults: false,
+      view: 'editor', solarLoading: true, solarSource: null,
+      fields: [], selectedFieldId: null,
+    });
+    try {
+      const { lat, lng } = await this.geocodePlace(result.placeId);
+      this.setState(prev => ({ selectedAddress: { ...prev.selectedAddress, lat, lng } }));
+      if (this.mapInst) {
+        this.mapInst.setMapTypeId('satellite');
+        this.mapInst.setZoom(19);
+        this.mapInst.panTo({ lat, lng });
+        if (this.panTimer) clearTimeout(this.panTimer);
+        this.panTimer = setTimeout(() => {
+          this.mapInst.panBy(-170, 0);
+          this.fetchAndDrawSolar(lat, lng);
+        }, 900);
+      } else {
+        this.fetchAndDrawSolar(lat, lng);
+      }
+    } catch(e) {
+      console.warn('Geocode error:', e);
+      this.setState({ solarLoading: false, solarSource: 'fallback' });
+    }
+  }
+
+  geocodePlace(placeId) {
+    return new Promise((resolve, reject) => {
+      const gc = new google.maps.Geocoder();
+      gc.geocode({ placeId }, (results, status) => {
+        if (status === 'OK' && results[0]) {
+          const loc = results[0].geometry.location;
+          resolve({ lat: loc.lat(), lng: loc.lng() });
+        } else reject(new Error('Geocoding: ' + status));
+      });
+    });
+  }
+
+  async fetchAndDrawSolar(lat, lng) {
+    this.clearMapLayers();
+    try {
+      const url = `https://solar.googleapis.com/v1/buildingInsights:findClosest?location.latitude=${lat}&location.longitude=${lng}&requiredQuality=LOW&key=${this.API_KEY}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.error || !data.solarPotential) throw new Error(data.error?.message || 'No solar data');
+      this.drawFromSolarAPI(data.solarPotential);
+    } catch(e) {
+      console.warn('Solar API:', e.message);
+      this.drawFallbackGrid(lat, lng);
+    }
+  }
+
+  drawFromSolarAPI(sp) {
+    this.sPH = sp.panelHeightMeters || 1.65;
+    this.sPW = sp.panelWidthMeters || 1.00;
+    this.sPCapW = 450;
+    this.lastSolarSegments = sp.roofSegmentStats || [];
+
+    // Roof outlines (reference only — panels are now placed manually)
+    this.lastSolarSegments.forEach(seg => {
+      const bb = seg.boundingBox;
+      if (!bb || !bb.lo || !bb.hi) return;
+      const poly = new google.maps.Polygon({
+        paths: [
+          { lat: bb.lo.latitude, lng: bb.lo.longitude },
+          { lat: bb.lo.latitude, lng: bb.hi.longitude },
+          { lat: bb.hi.latitude, lng: bb.hi.longitude },
+          { lat: bb.hi.latitude, lng: bb.lo.longitude },
+        ],
+        strokeColor: '#FFBE00', strokeOpacity: 0.9, strokeWeight: 2.5,
+        fillColor: '#FFBE00', fillOpacity: 0.1,
+        map: this.mapInst, clickable: false, zIndex: 1,
+      });
+      this.roofPolys.push(poly);
+    });
+
+    const panelList = sp.solarPanels || [];
+    this.avgPanelEnergy = panelList.length ? panelList.reduce((s,p) => s + (p.yearlyEnergyDcKwh||0), 0) / panelList.length : 0;
+
+    this.setState({ solarLoading:false, solarSource:'api', solarMaxPanels: sp.maxArrayPanelsCount || panelList.length });
+  }
+
+  // Returns 4 corners of a panel rectangle rotated to match roof azimuth.
+  // azimuthDeg: direction slope faces (0=N, 90=E, 180=S, 270=W).
+  // heightM runs along the slope; widthM runs along the ridge.
+  rotatedPanelCorners(lat, lng, heightM, widthM, azimuthDeg) {
+    const latM = 1 / 111320;
+    const lngM = 1 / (111320 * Math.cos(lat * Math.PI / 180));
+    const az = azimuthDeg * Math.PI / 180;
+    // Along-slope unit vector (lat/lng components)
+    const aLat = Math.cos(az);  const aLng = Math.sin(az);
+    // Along-ridge unit vector (perpendicular, CCW from azimuth)
+    const rLat = -Math.sin(az); const rLng = Math.cos(az);
+    const h = heightM / 2;      const w = widthM / 2;
+    return [
+      { lat: lat + (-h*aLat - w*rLat)*latM, lng: lng + (-h*aLng - w*rLng)*lngM },
+      { lat: lat + (-h*aLat + w*rLat)*latM, lng: lng + (-h*aLng + w*rLng)*lngM },
+      { lat: lat + ( h*aLat + w*rLat)*latM, lng: lng + ( h*aLng + w*rLng)*lngM },
+      { lat: lat + ( h*aLat - w*rLat)*latM, lng: lng + ( h*aLng - w*rLng)*lngM },
+    ];
+  }
+
+  drawFallbackGrid(lat, lng) {
+    this.sPH = 1.7; this.sPW = 1.05; this.sPCapW = 450;
+    this.lastSolarSegments = []; this.avgPanelEnergy = 0;
+    this.setState({ solarLoading:false, solarSource:'fallback', solarMaxPanels:0 });
+  }
+
+  clearMapLayers() {
+    this.roofPolys.forEach(p => p.setMap(null)); this.roofPolys = [];
+    Object.values(this.fieldLayers).forEach(l => {
+      l.polys.forEach(p => { try { p.setMap(null); } catch(e){} });
+      try { l.marker.setMap(null); } catch(e){}
+      try { l.rotHandle.setMap(null); } catch(e){}
+      ['colPlus','colMinus','rowPlus','rowMinus'].forEach(k => { try { l[k].setMap(null); } catch(e){} });
+    });
+    this.fieldLayers = {};
+  }
+
+  // Computes the rotated corner set for every panel slot in a field's grid.
+  fieldPanelCorners(field) {
+    const { lat, lng, rows, cols, rotation } = field;
+    const pH = this.sPH || 1.7, pW = this.sPW || 1.05, gap = 0.01;
+    const latM = 1/111320, lngM = 1/(111320*Math.cos(lat*Math.PI/180));
+    const az = rotation * Math.PI/180;
+    const aLat = Math.cos(az), aLng = Math.sin(az);
+    const rLat = -Math.sin(az), rLng = Math.cos(az);
+    const gw = cols*pW+(cols-1)*gap, gh = rows*pH+(rows-1)*gap;
+    const list = [];
+    for (let r=0; r<rows; r++) {
+      for (let c=0; c<cols; c++) {
+        const offY = -gh/2 + r*(pH+gap) + pH/2;
+        const offX = -gw/2 + c*(pW+gap) + pW/2;
+        const cLat = lat + (offY*aLat + offX*rLat)*latM;
+        const cLng = lng + (offY*aLng + offX*rLng)*lngM;
+        list.push(this.rotatedPanelCorners(cLat, cLng, pH, pW, rotation));
+      }
+    }
+    return list;
+  }
+
+  addField() {
+    if (!this.mapInst) return;
+    const c = this.mapInst.getCenter();
+    const id = 'f' + Date.now().toString(36);
+    const rotation = this.lastSolarSegments[0] ? Math.round(this.lastSolarSegments[0].azimuthDegrees || 180) : 180;
+    const field = { id, lat: c.lat(), lng: c.lng(), rows: 4, cols: 6, rotation };
+    this.setState(prev => ({ fields: [...prev.fields, field], selectedFieldId: id }));
+    this.drawFieldLayer(field);
+  }
+
+  makePanelPoly(corners, fieldId) {
+    const poly = new google.maps.Polygon({
+      paths: corners, strokeColor: 'rgba(0,29,61,0.5)', strokeWeight: 0.8,
+      fillColor: '#FFBE00', fillOpacity: 0.85, map: this.mapInst, clickable: true, zIndex: 3,
+    });
+    poly.addListener('click', () => this.setState({ selectedFieldId: fieldId }));
+    return poly;
+  }
+
+  rotHandlePos(field) {
+    const pH = this.sPH || 1.7, gap = 0.01;
+    const gh = field.rows*pH+(field.rows-1)*gap;
+    const dist = gh/2 + 1.3;
+    const az = field.rotation * Math.PI/180;
+    const latM = 1/111320, lngM = 1/(111320*Math.cos(field.lat*Math.PI/180));
+    return { lat: field.lat + dist*Math.cos(az)*latM, lng: field.lng + dist*Math.sin(az)*lngM };
+  }
+
+  rotHandleIcon(rotation) {
+    return { path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, scale: 4.5, rotation, fillColor: '#FFBE00', fillOpacity: 1, strokeColor: '#001D3D', strokeWeight: 1.5 };
+  }
+
+  bearingFromCenter(field, pos) {
+    const latM = 1/111320, lngM = 1/(111320*Math.cos(field.lat*Math.PI/180));
+    const y = (pos.lat()-field.lat)/latM, x = (pos.lng()-field.lng)/lngM;
+    let deg = Math.atan2(x,y)*180/Math.PI;
+    if (deg < 0) deg += 360;
+    return Math.round(deg);
+  }
+
+  // Offsets a point from the field center by ridgeM (perpendicular) and slopeM (along rotation axis) meters.
+  offsetPos(field, ridgeM, slopeM) {
+    const az = field.rotation * Math.PI/180;
+    const aLat = Math.cos(az), aLng = Math.sin(az), rLat = -Math.sin(az), rLng = Math.cos(az);
+    const latM = 1/111320, lngM = 1/(111320*Math.cos(field.lat*Math.PI/180));
+    return {
+      lat: field.lat + (slopeM*aLat + ridgeM*rLat)*latM,
+      lng: field.lng + (slopeM*aLng + ridgeM*rLng)*lngM,
+    };
+  }
+
+  fieldGridSize(field) {
+    const pH = this.sPH || 1.7, pW = this.sPW || 1.05, gap = 0.01;
+    return { gw: field.cols*pW+(field.cols-1)*gap, gh: field.rows*pH+(field.rows-1)*gap };
+  }
+
+  edgeHandlePositions(field) {
+    const { gw, gh } = this.fieldGridSize(field);
+    return {
+      colPlus: this.offsetPos(field, gw/2+0.7, gh*0.28),
+      colMinus: this.offsetPos(field, gw/2+0.7, -gh*0.28),
+      rowPlus: this.offsetPos(field, -gw*0.28, -(gh/2+0.7)),
+      rowMinus: this.offsetPos(field, gw*0.28, -(gh/2+0.7)),
+    };
+  }
+
+  stepperIcon(sign) {
+    return { path: google.maps.SymbolPath.CIRCLE, scale: 9, fillColor: sign>0?'#FFBE00':'#0b2a4d', fillOpacity: 1, strokeColor: '#001D3D', strokeWeight: 1.5 };
+  }
+
+  stepperLabel(sign) {
+    return { text: sign>0?'+':'−', color: sign>0?'#001D3D':'#FFBE00', fontSize:'13px', fontWeight:'700' };
+  }
+
+  drawFieldLayer(field) {
+    const polys = this.fieldPanelCorners(field).map(corners => this.makePanelPoly(corners, field.id));
+    const marker = new google.maps.Marker({
+      position: { lat: field.lat, lng: field.lng }, map: this.mapInst, draggable: true, zIndex: 10,
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#001D3D', fillOpacity: 1, strokeColor: '#FFBE00', strokeWeight: 2.5 },
+      cursor: 'move',
+    });
+    marker.addListener('drag', () => {
+      const pos = marker.getPosition();
+      this.updateFieldProp(field.id, { lat: pos.lat(), lng: pos.lng() }, true, false);
+    });
+    marker.addListener('click', () => this.setState({ selectedFieldId: field.id }));
+
+    const rotHandle = new google.maps.Marker({
+      position: this.rotHandlePos(field), map: this.mapInst, draggable: true, zIndex: 11,
+      icon: this.rotHandleIcon(field.rotation), cursor: 'grab',
+    });
+    rotHandle.addListener('drag', () => {
+      const pos = rotHandle.getPosition();
+      const f = this.state.fields.find(x => x.id === field.id); if (!f) return;
+      const rot = this.bearingFromCenter(f, pos);
+      rotHandle.setIcon(this.rotHandleIcon(rot));
+      this.updateFieldProp(field.id, { rotation: rot }, false, true);
+    });
+    rotHandle.addListener('dragend', () => {
+      const f = this.state.fields.find(x => x.id === field.id); if (!f) return;
+      rotHandle.setPosition(this.rotHandlePos(f));
+    });
+    rotHandle.addListener('click', () => this.setState({ selectedFieldId: field.id }));
+
+    const eh = this.edgeHandlePositions(field);
+    const colPlus = new google.maps.Marker({ position: eh.colPlus, map: this.mapInst, zIndex: 11, icon: this.stepperIcon(1), label: this.stepperLabel(1), cursor: 'pointer' });
+    const colMinus = new google.maps.Marker({ position: eh.colMinus, map: this.mapInst, zIndex: 11, icon: this.stepperIcon(-1), label: this.stepperLabel(-1), cursor: 'pointer' });
+    const rowPlus = new google.maps.Marker({ position: eh.rowPlus, map: this.mapInst, zIndex: 11, icon: this.stepperIcon(1), label: this.stepperLabel(1), cursor: 'pointer' });
+    const rowMinus = new google.maps.Marker({ position: eh.rowMinus, map: this.mapInst, zIndex: 11, icon: this.stepperIcon(-1), label: this.stepperLabel(-1), cursor: 'pointer' });
+    colPlus.addListener('click', () => { this.setState({ selectedFieldId: field.id }); this.bumpFieldById(field.id, 'cols', 1); });
+    colMinus.addListener('click', () => { this.setState({ selectedFieldId: field.id }); this.bumpFieldById(field.id, 'cols', -1); });
+    rowPlus.addListener('click', () => { this.setState({ selectedFieldId: field.id }); this.bumpFieldById(field.id, 'rows', 1); });
+    rowMinus.addListener('click', () => { this.setState({ selectedFieldId: field.id }); this.bumpFieldById(field.id, 'rows', -1); });
+
+    this.fieldLayers[field.id] = { polys, marker, rotHandle, colPlus, colMinus, rowPlus, rowMinus };
+  }
+
+  redrawFieldPolys(field) {
+    const layer = this.fieldLayers[field.id]; if (!layer) return;
+    layer.polys.forEach(p => p.setMap(null));
+    layer.polys = this.fieldPanelCorners(field).map(corners => this.makePanelPoly(corners, field.id));
+  }
+
+  updateFieldProp(id, patch, skipCenterMove, skipRotHandle) {
+    const fields = this.state.fields.map(f => f.id === id ? { ...f, ...patch } : f);
+    this.setState({ fields });
+    const f = fields.find(x => x.id === id);
+    if (!f) return;
+    this.redrawFieldPolys(f);
+    const layer = this.fieldLayers[id];
+    if (!layer) return;
+    if (!skipCenterMove && (patch.lat !== undefined || patch.lng !== undefined)) {
+      layer.marker.setPosition({ lat: f.lat, lng: f.lng });
+    }
+    if (!skipRotHandle) {
+      layer.rotHandle.setPosition(this.rotHandlePos(f));
+      layer.rotHandle.setIcon(this.rotHandleIcon(f.rotation));
+    }
+    const eh = this.edgeHandlePositions(f);
+    layer.colPlus.setPosition(eh.colPlus); layer.colMinus.setPosition(eh.colMinus);
+    layer.rowPlus.setPosition(eh.rowPlus); layer.rowMinus.setPosition(eh.rowMinus);
+  }
+
+  bumpFieldById(id, key, delta) {
+    const f = this.state.fields.find(x => x.id === id); if (!f) return;
+    const val = Math.max(1, Math.min(24, f[key] + delta));
+    this.updateFieldProp(id, { [key]: val });
+  }
+
+  bumpField(key, delta) {
+    const id = this.state.selectedFieldId; if (!id) return;
+    this.bumpFieldById(id, key, delta);
+  }
+
+  setFieldRotation(id, val) { this.updateFieldProp(id, { rotation: val }); }
+
+  removeField(id) {
+    const layer = this.fieldLayers[id];
+    if (layer) {
+      layer.polys.forEach(p => p.setMap(null)); layer.marker.setMap(null); layer.rotHandle.setMap(null);
+      ['colPlus','colMinus','rowPlus','rowMinus'].forEach(k => { try { layer[k].setMap(null); } catch(e){} });
+      delete this.fieldLayers[id];
+    }
+    const fields = this.state.fields.filter(f => f.id !== id);
+    this.setState(prev => ({ fields, selectedFieldId: prev.selectedFieldId === id ? null : prev.selectedFieldId }));
+  }
+
+  goBackToMap() {
+    if (this.panTimer) { clearTimeout(this.panTimer); this.panTimer=null; }
+    if (this.mapInst) {
+      this.mapInst.setMapTypeId('roadmap');
+      this.mapInst.setZoom(6);
+      this.mapInst.panTo({ lat:46.7, lng:2.3 });
+    }
+    this.clearMapLayers();
+    this.setState({ view:'map', selectedAddress:null, searchQuery:'', fields:[], selectedFieldId:null, simStep:0, solarLoading:false, solarSource:null, solarMaxPanels:0 });
+  }
+
+  async exportRoofImage() {
+    const { fields, selectedAddress } = this.state;
+    if (!fields.length || !this.mapInst) return;
+    const c = this.mapInst.getCenter();
+    const zoom = this.mapInst.getZoom();
+    const f6 = n => n.toFixed(6);
+
+    const totalPanels = fields.reduce((s,f)=>s+f.rows*f.cols,0);
+    const paths = [];
+    if (totalPanels <= 60) {
+      fields.forEach(field => {
+        this.fieldPanelCorners(field).forEach(cs => {
+          paths.push('path=fillcolor:0xFFBE00CC%7Ccolor:0x001D3DFF%7Cweight:1%7C' +
+            cs.concat([cs[0]]).map(p=>`${f6(p.lat)},${f6(p.lng)}`).join('%7C'));
+        });
+      });
+    } else {
+      fields.forEach(field => {
+        const { gw, gh } = this.fieldGridSize(field);
+        const cs = [
+          this.offsetPos(field, -gw/2, gh/2), this.offsetPos(field, gw/2, gh/2),
+          this.offsetPos(field, gw/2, -gh/2), this.offsetPos(field, -gw/2, -gh/2),
+        ];
+        paths.push('path=fillcolor:0xFFBE00CC%7Ccolor:0x001D3DFF%7Cweight:2%7C' +
+          cs.concat([cs[0]]).map(p=>`${f6(p.lat)},${f6(p.lng)}`).join('%7C'));
+      });
+    }
+
+    const url = `https://maps.googleapis.com/maps/api/staticmap?center=${f6(c.lat())},${f6(c.lng())}`
+      + `&zoom=${zoom}&size=640x640&scale=2&maptype=satellite&${paths.join('&')}&key=${this.API_KEY}`;
+
+    const slug = (selectedAddress && selectedAddress.label ? selectedAddress.label : 'export')
+      .replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase().slice(0,60);
+    const name = `plan-toiture-${slug}.png`;
+
+    this.setState({ exportError: null, exportBusy: true });
+
+    const loadImg = (crossOrigin) => new Promise(resolve => {
+      const img = new Image();
+      if (crossOrigin) img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+
+    // 1. Try CORS-enabled load → canvas → real file download.
+    const corsImg = await loadImg(true);
+    if (corsImg) {
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = corsImg.naturalWidth; cv.height = corsImg.naturalHeight;
+        cv.getContext('2d').drawImage(corsImg, 0, 0);
+        const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
+        if (blob) {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = name;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+          this.setState({ exportBusy: false });
+          return true;
+        }
+      } catch (e) { /* tainted canvas → fall through */ }
+    }
+
+    // 2. Image loads but can't be read → open it in a tab so it can be saved manually.
+    const plainImg = await loadImg(false);
+    if (plainImg) {
+      const w = window.open('', '_blank');
+      if (w) {
+        w.document.write(`<title>${name}</title><body style="margin:0;background:#001D3D;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${url}" style="max-width:100%;height:auto">`);
+        w.document.close();
+        this.setState({ exportBusy: false });
+        return true;
+      }
+      this.setState({ exportBusy:false, exportError:"Fenêtre bloquée par le navigateur — autorisez les pop-ups pour récupérer l'image." });
+      return false;
+    }
+
+    // 3. Static Maps refused the request.
+    this.setState({ exportBusy:false, exportError:"Export impossible : activez « Maps Static API » sur votre clé Google Cloud (API actuellement refusée, erreur 403)." });
+    return false;
+  }
+
+  startSim() {
+    const panelCount = this.state.fields.reduce((s,f)=>s+f.rows*f.cols,0);
+    if (panelCount===0) return;
+    this.setState({ view:'sim-form', simStep:0 });
+  }
+  setF(k,v) { this.setState(p=>({ sd:{...p.sd,[k]:v} })); }
+
+  nextStep() {
+    const { simStep } = this.state;
+    if (simStep < 4) this.setState({ simStep:simStep+1 });
+    else this.saveSim();
+  }
+  prevStep() {
+    const { simStep } = this.state;
+    if (simStep > 0) this.setState({ simStep:simStep-1 });
+    else this.setState({ view:'editor' });
+  }
+
+  calcRes() {
+    const { sd, fields } = this.state;
+    const panelCount = fields.reduce((s,f)=>s+f.rows*f.cols,0);
+    if (!panelCount) return { panelCount:0, totalPowerKwc:'0.00', annualProduction:0, selfConsRate:0, annualSavings:0, roi:0, costK:'0', co2:0 };
+    const capKw = (this.sPCapW||400)/1000;
+    const kw = panelCount * capKw;
+    let prod;
+    // Use Solar API average panel yield if available
+    if (this.avgPanelEnergy > 0) {
+      prod = Math.round(this.avgPanelEnergy * panelCount * 0.85);
+    } else {
+      const oF = { 'Sud':1,'Sud-Est':0.95,'Sud-Ouest':0.95,'Est':0.82,'Ouest':0.82 }[sd.roofOrientation]||1;
+      const tF = 1 - Math.abs((parseFloat(sd.roofTilt)||30)-30)*0.003;
+      prod = Math.round(kw * 1350 * oF * tF);
+    }
+    let cons = (parseInt(sd.householdSize)||3)*1100;
+    if (sd.heatingType==='electricite') cons+=4000; if (sd.heatingType==='pac') cons+=2500;
+    if (sd.hasEV) cons+=2500; if (sd.hasAC) cons+=800; if (sd.hasHotWater) cons+=1200;
+    cons = parseFloat(sd.annualKwh)||cons;
+    const scR = Math.min(0.85, (cons/prod)*0.88);
+    const sav = Math.round(prod*scR*0.2516);
+    const cost = Math.round(kw*2900);
+    return { panelCount, totalPowerKwc:kw.toFixed(2), annualProduction:prod, selfConsRate:Math.round(scR*100), annualSavings:sav, roi:sav>0?Math.round(cost/sav):0, costK:(cost/1000).toFixed(1), co2:Math.round(prod*0.055) };
+  }
+
+  saveSim() {
+    const res = this.calcRes();
+    const { sd, selectedAddress } = this.state;
+    const id = 'S'+Date.now().toString(36).toUpperCase().slice(-5);
+    const sim = { id, date:new Date().toLocaleDateString('fr-FR'), clientName:sd.clientName||'Client', clientEmail:sd.clientEmail, address:selectedAddress?.label||'', ...res, shareUrl:`https://solarsizerpro.rhonesolaire.fr/sim/${id}`, status:'Finalisé' };
+    const list = [sim, ...this.state.simulations];
+    try { localStorage.setItem('ssp_v3', JSON.stringify(list)); } catch(e) {}
+    this.setState({ simulations:list, view:'sim-list' });
+  }
+
+  deleteSim(id) {
+    const list = this.state.simulations.filter(s=>s.id!==id);
+    try { localStorage.setItem('ssp_v3', JSON.stringify(list)); } catch(e) {}
+    this.setState({ simulations:list });
+  }
+
+  copyLink(url) {
+    const fb = () => { const t=document.createElement('textarea'); t.value=url; t.style.cssText='position:fixed;opacity:0'; document.body.appendChild(t); t.select(); document.execCommand('copy'); document.body.removeChild(t); };
+    if (navigator.clipboard) navigator.clipboard.writeText(url).catch(fb); else fb();
+    this.setState({ showToast:true });
+    setTimeout(()=>this.setState({showToast:false}), 2600);
+  }
+
+  renderVals() {
+    const { view, searchQuery, searchResults, showResults, selectedAddress, fields, selectedFieldId, solarLoading, solarSource, solarMaxPanels, simStep, sd, simulations, showToast, exportError, exportBusy } = this.state;
+    const res = this.calcRes();
+    const panelCount = res.panelCount;
+    const capKw = (this.sPCapW||400)/1000;
+    const kw = (panelCount * capKw).toFixed(1);
+    const area = (panelCount * (this.sPH||1.7) * (this.sPW||1.05)).toFixed(1);
+    const selField = fields.find(f=>f.id===selectedFieldId) || null;
+    const mappedFields = fields.map((f,i) => ({
+      ...f,
+      label: `Champ ${i+1}`,
+      count: f.rows*f.cols,
+      bg: f.id===selectedFieldId ? 'rgba(255,190,0,0.12)' : 'rgba(255,255,255,0.05)',
+      bd: f.id===selectedFieldId ? 'rgba(255,190,0,0.4)' : 'rgba(255,255,255,0.08)',
+      onSelect: ()=>this.setState({selectedFieldId:f.id}),
+      onDelete: (e)=>{ if(e&&e.stopPropagation) e.stopPropagation(); this.removeField(f.id); },
+    }));
+    const dotC = i => i < simStep ? '#001D3D' : i === simStep ? '#FFBE00' : '#dde8f2';
+    const steps = [
+      ['Informations client','Renseignez les coordonnées du client.'],
+      ['Consommation électrique','Estimez la consommation du logement.'],
+      ['Foyer et équipements','Indiquez la composition du foyer.'],
+      ['Configuration du toit','Orientation et inclinaison.'],
+      ['Résultats de simulation','Synthèse de votre projet solaire.'],
+    ];
+    const mappedSims = simulations.map(s=>({
+      ...s,
+      stBg: s.status==='Finalisé'?'#dcfce7':s.status==='Envoyé'?'#dbeafe':'#fef9c3',
+      stCol: s.status==='Finalisé'?'#15803d':s.status==='Envoyé'?'#1e40af':'#854d0e',
+      onDelete: ()=>this.deleteSim(s.id), onShare: ()=>this.copyLink(s.shareUrl),
+    }));
+
+    return {
+      isMapView:view==='map', isEditorView:view==='editor', isSimForm:view==='sim-form', isSimList:view==='sim-list',
+      notSimList:view!=='sim-list',
+      showBackBtn:view==='editor'||view==='sim-form',
+      headerBackLabel:view==='sim-form'?'× Annuler':'← Retour',
+      onHeaderBack:()=>{ if(view==='sim-form') this.setState({view:'editor'}); else this.goBackToMap(); },
+      onGoToList:()=>this.setState({view:'sim-list'}),
+      onNewSim:()=>this.goBackToMap(),
+      simCount:simulations.length, simS:simulations.length>1?'s':'',
+
+      searchQuery, searchResults, showResults: showResults && searchResults.length>0,
+      onSearchInput:e=>this.handleSearchInput(e), onSearchBlur:()=>this.onSearchBlur(),
+      selectedAddressLabel:selectedAddress?.label||'',
+
+      panelCount, panelPower:kw, panelArea:area,
+      ctaBg:panelCount>0?'#FFBE00':'rgba(255,190,0,0.3)', ctaCursor:panelCount>0?'pointer':'not-allowed',
+      noPanels:panelCount===0,
+      onStartSim:()=>this.startSim(),
+      onExport:()=>this.exportRoofImage(),
+      exportError, exportBusy,
+      ctaLabel: exportBusy ? 'Export en cours…' : 'Exporter le plan de toiture',
+
+      noFields: fields.length===0, mappedFields,
+      onAddField:()=>this.addField(),
+      hasSelectedField: !!selField,
+      selFieldLabel: selField ? `Champ ${fields.findIndex(f=>f.id===selField.id)+1}` : '',
+      selRows: selField?.rows||0, selCols: selField?.cols||0, selRotation: selField?.rotation||0,
+      onIncRows:()=>this.bumpField('rows',1), onDecRows:()=>this.bumpField('rows',-1),
+      onIncCols:()=>this.bumpField('cols',1), onDecCols:()=>this.bumpField('cols',-1),
+      onRotation:e=>{ if(selectedFieldId) this.setFieldRotation(selectedFieldId, parseInt(e.target.value)); },
+
+      solarLoading, solarFromAPI:solarSource==='api', solarFallback:solarSource==='fallback',
+      solarInfo: solarMaxPanels > 0 ? `${solarMaxPanels} emplacements recommandés par Google Solar` : '',
+
+      simStep, stepDisplay:simStep+1,
+      stepTitle:steps[simStep]?.[0]||'', stepSub:steps[simStep]?.[1]||'',
+      d1:dotC(0), d2:dotC(1), d3:dotC(2), d4:dotC(3),
+      s0:simStep===0?'block':'none', s1:simStep===1?'block':'none',
+      s2:simStep===2?'block':'none', s3:simStep===3?'block':'none', s4:simStep===4?'block':'none',
+      nextLabel:simStep<3?'Suivant':simStep===3?'Calculer':'Enregistrer',
+
+      sd,
+      hName:e=>this.setF('clientName',e.target.value), hEmail:e=>this.setF('clientEmail',e.target.value),
+      hPhone:e=>this.setF('clientPhone',e.target.value), hKwh:e=>this.setF('annualKwh',e.target.value),
+      hBill:e=>this.setF('monthlyBill',e.target.value), hSize:e=>this.setF('householdSize',e.target.value),
+      hHeat:e=>this.setF('heatingType',e.target.value),
+      hToggleEV:()=>this.setF('hasEV',!sd.hasEV), hToggleAC:()=>this.setF('hasAC',!sd.hasAC), hToggleHW:()=>this.setF('hasHotWater',!sd.hasHotWater),
+      evBg:sd.hasEV?'#FFBE00':'#d0dbe8', evPos:sd.hasEV?'translateX(20px)':'translateX(2px)',
+      acBg:sd.hasAC?'#FFBE00':'#d0dbe8', acPos:sd.hasAC?'translateX(20px)':'translateX(2px)',
+      hwBg:sd.hasHotWater?'#FFBE00':'#d0dbe8', hwPos:sd.hasHotWater?'translateX(20px)':'translateX(2px)',
+      hOrient:e=>this.setF('roofOrientation',e.target.value), hTilt:e=>this.setF('roofTilt',e.target.value),
+      onNext:()=>this.nextStep(), onPrev:()=>this.prevStep(),
+
+      res, hasSims:simulations.length>0, noSims:simulations.length===0, mappedSims, showToast,
+    };
+  }
+}
+</script>
+</body>
+</html>
