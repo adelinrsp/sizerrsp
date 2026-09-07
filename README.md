@@ -162,5 +162,11 @@ sur la carte et ceux du PNG sortent du même calcul.
   l'API Solar sous forme de rectangles jaunes. Ils encombraient la vue et ont été
   retirés ; seul l'azimut du premier segment est conservé, pour orienter le premier
   champ dans le sens de la pente.
+- **Dimensions de panneau** — `DEFAULT_PANEL_SPEC` dans `lib/geo.ts` est la seule source
+  de vérité : 1,95 × 1,13 m, 500 Wc. Solar API renvoie ses propres dimensions, elles sont
+  ignorées volontairement — un plan doit être dessiné au module qui sera réellement posé.
+  Conséquence : `maxArrayPanelsCount`, affiché comme « emplacements recommandés par Google
+  Solar », reste calculé par Google avec *son* panneau. C'est un ordre de grandeur, pas le
+  nombre de nos panneaux ; le compteur du panneau latéral, lui, compte les vôtres.
 - **Pas de persistance** — rien n'est sauvegardé, par choix. Rafraîchir la page repart de
   zéro.

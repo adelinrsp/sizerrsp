@@ -1,8 +1,10 @@
 import type { Field, LatLng, PanelSpec } from './types';
 
 /**
- * The panel Rhône Solaire installs, and the fallback whenever the Solar API
- * doesn't answer for an address. `heightM` runs along the slope.
+ * The panel Rhône Solaire installs — the single source of truth for panel
+ * geometry. Solar API reports dimensions of its own; they are ignored, because
+ * a plan has to be drawn to the module that will actually be on the roof.
+ * `heightM` runs along the slope.
  */
 export const DEFAULT_PANEL_SPEC: PanelSpec = {
   heightM: 1.95,

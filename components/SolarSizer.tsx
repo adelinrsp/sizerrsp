@@ -140,12 +140,8 @@ export default function SolarSizer() {
         return;
       }
 
-      setPanelSpec({
-        heightM: data.panelHeightMeters || DEFAULT_PANEL_SPEC.heightM,
-        widthM: data.panelWidthMeters || DEFAULT_PANEL_SPEC.widthM,
-        capacityW: data.panelCapacityWatts || DEFAULT_PANEL_SPEC.capacityW,
-      });
-
+      // Solar API also reports its own panel dimensions; we ignore them. The
+      // module we install is fixed, so the grids must always be drawn to it.
       const segments: RoofSegment[] = data.roofSegments || [];
       roofAzimuthRef.current = Math.round(segments[0]?.azimuthDegrees ?? 180);
 

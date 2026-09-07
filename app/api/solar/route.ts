@@ -65,11 +65,10 @@ export async function GET(req: Request) {
         ) / panels.length
       : 0;
 
+    // Panel dimensions are deliberately not forwarded: the module we install is
+    // fixed (see DEFAULT_PANEL_SPEC), so Solar API's own geometry is ignored.
     return NextResponse.json({
       available: true,
-      panelHeightMeters: sp.panelHeightMeters ?? null,
-      panelWidthMeters: sp.panelWidthMeters ?? null,
-      panelCapacityWatts: sp.panelCapacityWatts ?? null,
       maxArrayPanelsCount: sp.maxArrayPanelsCount ?? panels.length,
       avgPanelEnergy,
       roofSegments: (sp.roofSegmentStats || []).map((seg: { azimuthDegrees?: number }) => ({
