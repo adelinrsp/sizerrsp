@@ -1,10 +1,13 @@
 import type { Field, LatLng, PanelSpec } from './types';
 
-/** Used whenever the Solar API doesn't answer for an address. */
+/**
+ * The panel Rhône Solaire installs, and the fallback whenever the Solar API
+ * doesn't answer for an address. `heightM` runs along the slope.
+ */
 export const DEFAULT_PANEL_SPEC: PanelSpec = {
-  heightM: 1.7,
-  widthM: 1.05,
-  capacityW: 450,
+  heightM: 1.95,
+  widthM: 1.13,
+  capacityW: 500,
 };
 
 export const PANEL_GAP_M = 0.01;

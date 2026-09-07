@@ -6,9 +6,9 @@ type Props = {
 };
 
 /**
- * Hides the on-map rotation arrow and +/- steppers for a clean view — useful
- * when showing the roof to a client. Sits to the left of the Maps zoom
- * controls, which occupy the bottom-right corner.
+ * Switches between the editing view and the presentation view: hides the
+ * rotation arrow and +/- steppers, and turns the panels black. Sits to the left
+ * of the zoom controls, which occupy the bottom-right corner.
  */
 export default function HandlesToggle({ visible, onToggle }: Props) {
   return (
@@ -18,8 +18,8 @@ export default function HandlesToggle({ visible, onToggle }: Props) {
       aria-pressed={!visible}
       title={
         visible
-          ? 'Masquer les poignées de rotation et les boutons + / −'
-          : 'Afficher les poignées de rotation et les boutons + / −'
+          ? 'Vue client : masquer les poignées et passer les panneaux en noir'
+          : 'Vue édition : afficher les poignées et repasser les panneaux en jaune'
       }
       style={{
         position: 'absolute',

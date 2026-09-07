@@ -7,11 +7,20 @@ import {
   tooManyRequests,
   upstreamError,
 } from '@/lib/server/google';
+import { resolveProvider } from '@/lib/map/provider';
 
 export const runtime = 'nodejs';
 
+/**
+ * Resolves a Google place id to coordinates. Unused by the OSM stack, where the
+ * BAN already returns coordinates alongside each suggestion.
+ */
 export async function GET(req: Request) {
   if (!rateLimit(req, 60)) return tooManyRequests();
+
+  if (resolveProvider() === 'osm') {
+    return badRequest('Géocodage inutile : les suggestions portent déjà leurs coordonnées.');
+  }
 
   const placeId = new URL(req.url).searchParams.get('placeId');
   if (!placeId) return badRequest('placeId manquant.');

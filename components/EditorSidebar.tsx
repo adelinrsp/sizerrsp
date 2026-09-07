@@ -1,5 +1,6 @@
 'use client';
 
+import { resolveProvider } from '@/lib/map/provider';
 import type { Field, PanelSpec, SolarSource } from '@/lib/types';
 
 type Props = {
@@ -19,6 +20,13 @@ type Props = {
   onRotation: (value: number) => void;
   onExport: () => void;
 };
+
+const IS_OSM = resolveProvider() === 'osm';
+/** Without Solar API there is no roof analysis to report, only manual placement. */
+const ANALYSIS_LABEL = IS_OSM ? 'Analyse du toit' : 'Analyse Google Solar';
+const FALLBACK_TEXT = IS_OSM
+  ? 'Placement manuel (analyse indisponible)'
+  : 'Délimitation estimée (hors couverture)';
 
 const SECTION_BORDER = '1px solid rgba(255,255,255,0.09)';
 const LABEL: React.CSSProperties = {
@@ -138,7 +146,7 @@ export default function EditorSidebar({
       </div>
 
       <div style={{ padding: '14px 20px', borderBottom: SECTION_BORDER }}>
-        <div style={{ ...LABEL, marginBottom: 10 }}>Analyse Google Solar</div>
+        <div style={{ ...LABEL, marginBottom: 10 }}>{ANALYSIS_LABEL}</div>
 
         {solarLoading && (
           <div
@@ -164,7 +172,7 @@ export default function EditorSidebar({
               }}
             />
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.72)' }}>
-              Interrogation de l’API Solar…
+              {IS_OSM ? "Préparation de la vue aérienne…" : "Interrogation de l’API Solar…"}
             </span>
           </div>
         )}
@@ -227,7 +235,7 @@ export default function EditorSidebar({
               }}
             />
             <span style={{ fontSize: 12, fontWeight: 500, color: 'rgba(255,255,255,0.8)' }}>
-              Délimitation estimée (hors couverture)
+              {FALLBACK_TEXT}
             </span>
           </div>
         )}

@@ -4,6 +4,7 @@ import {
   fieldPanelCorners,
   rotHandlePos,
 } from './geo';
+import type { IconSpec, MapHandle, MarkerHandle, PolygonHandle } from './map/types';
 import type { Field, PanelSpec } from './types';
 
 type Handlers = {
@@ -14,19 +15,39 @@ type Handlers = {
 };
 
 type Layer = {
-  polys: google.maps.Polygon[];
-  center: google.maps.Marker;
-  rotHandle: google.maps.Marker;
-  steppers: Record<'colPlus' | 'colMinus' | 'rowPlus' | 'rowMinus', google.maps.Marker>;
+  polys: PolygonHandle[];
+  center: MarkerHandle;
+  rotHandle: MarkerHandle;
+  steppers: Record<'colPlus' | 'colMinus' | 'rowPlus' | 'rowMinus', MarkerHandle>;
 };
 
 /**
- * Owns every Google Maps overlay for the panel fields. React holds the field
- * data; this class holds the objects on the map and is driven imperatively so
+ * Editing look, then the presentation look: with the handles hidden the grids
+ * are drawn as real black modules, so the roof reads as it will once installed.
+ */
+const PANEL_STYLE = {
+  editing: { fill: '#FFBE00', stroke: 'rgba(0,29,61,0.5)' },
+  presenting: { fill: '#0C0F14', stroke: 'rgba(255,255,255,0.3)' },
+} as const;
+
+const rotIcon = (rotation: number): IconSpec => ({
+  kind: 'arrow',
+  rotation,
+  fill: '#FFBE00',
+  stroke: '#001D3D',
+  strokeWidth: 1.5,
+});
+
+/**
+ * Owns every map overlay for the panel fields. React holds the field data;
+ * this class holds the objects on the map and is driven imperatively so
  * dragging stays smooth (a re-render per drag frame would stutter).
+ *
+ * It talks to `MapHandle` rather than a mapping library directly, so the same
+ * code drives Google Maps and the keyless Leaflet stack.
  */
 export class FieldLayers {
-  private map: google.maps.Map;
+  private map: MapHandle;
   private spec: PanelSpec;
   private handlers: Handlers;
   private layers = new Map<string, Layer>();
@@ -35,7 +56,7 @@ export class FieldLayers {
   /** When false, the rotation arrow and +/- steppers are hidden for a clean view. */
   private handlesVisible = true;
 
-  constructor(map: google.maps.Map, spec: PanelSpec, handlers: Handlers) {
+  constructor(map: MapHandle, spec: PanelSpec, handlers: Handlers) {
     this.map = map;
     this.spec = spec;
     this.handlers = handlers;
@@ -51,81 +72,65 @@ export class FieldLayers {
 
     const polys = this.buildPanelPolys(field);
 
-    const center = new google.maps.Marker({
+    const center = this.map.addMarker({
       position: { lat: field.lat, lng: field.lng },
-      map: this.map,
       draggable: true,
       zIndex: 10,
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 8,
-        fillColor: '#001D3D',
-        fillOpacity: 1,
-        strokeColor: '#FFBE00',
-        strokeWeight: 2.5,
-      },
       cursor: 'move',
+      icon: {
+        kind: 'circle',
+        radius: 8,
+        fill: '#001D3D',
+        stroke: '#FFBE00',
+        strokeWidth: 2.5,
+      },
+      onDrag: (pos) => this.handlers.onMove(field.id, pos.lat, pos.lng),
+      onClick: () => this.handlers.onSelect(field.id),
     });
-    center.addListener('drag', () => {
-      const pos = center.getPosition();
-      if (pos) this.handlers.onMove(field.id, pos.lat(), pos.lng());
-    });
-    center.addListener('click', () => this.handlers.onSelect(field.id));
 
-    const rotHandle = new google.maps.Marker({
+    const rotHandle = this.map.addMarker({
       position: rotHandlePos(field, this.spec),
-      map: this.map,
       draggable: true,
       zIndex: 11,
-      icon: this.rotIcon(field.rotation),
       cursor: 'grab',
+      icon: rotIcon(field.rotation),
+      onDrag: (pos) => {
+        const current = this.fields.get(field.id);
+        if (!current) return;
+        const rotation = bearingFromCenter(current, pos);
+        rotHandle.setIcon(rotIcon(rotation));
+        this.handlers.onRotate(field.id, rotation);
+      },
+      onDragEnd: () => {
+        const current = this.fields.get(field.id);
+        if (current) rotHandle.setPosition(rotHandlePos(current, this.spec));
+      },
+      onClick: () => this.handlers.onSelect(field.id),
     });
-    rotHandle.addListener('drag', () => {
-      const pos = rotHandle.getPosition();
-      const current = this.fields.get(field.id);
-      if (!pos || !current) return;
-      const rotation = bearingFromCenter(current, { lat: pos.lat(), lng: pos.lng() });
-      rotHandle.setIcon(this.rotIcon(rotation));
-      this.handlers.onRotate(field.id, rotation);
-    });
-    rotHandle.addListener('dragend', () => {
-      const current = this.fields.get(field.id);
-      if (current) rotHandle.setPosition(rotHandlePos(current, this.spec));
-    });
-    rotHandle.addListener('click', () => this.handlers.onSelect(field.id));
 
     const eh = edgeHandlePositions(field, this.spec);
     const makeStepper = (
-      position: google.maps.LatLngLiteral,
+      position: { lat: number; lng: number },
       sign: 1 | -1,
       key: 'rows' | 'cols',
-    ) => {
-      const marker = new google.maps.Marker({
+    ) =>
+      this.map.addMarker({
         position,
-        map: this.map,
         zIndex: 11,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 9,
-          fillColor: sign > 0 ? '#FFBE00' : '#0b2a4d',
-          fillOpacity: 1,
-          strokeColor: '#001D3D',
-          strokeWeight: 1.5,
-        },
-        label: {
-          text: sign > 0 ? '+' : '−',
-          color: sign > 0 ? '#001D3D' : '#FFBE00',
-          fontSize: '13px',
-          fontWeight: '700',
-        },
         cursor: 'pointer',
+        icon: {
+          kind: 'circle',
+          radius: 9,
+          fill: sign > 0 ? '#FFBE00' : '#0b2a4d',
+          stroke: '#001D3D',
+          strokeWidth: 1.5,
+          label: { text: sign > 0 ? '+' : '−', color: sign > 0 ? '#001D3D' : '#FFBE00' },
+        },
+        onClick: () => {
+          this.handlers.onSelect(field.id);
+          this.handlers.onBump(field.id, key, sign);
+        },
       });
-      marker.addListener('click', () => {
-        this.handlers.onSelect(field.id);
-        this.handlers.onBump(field.id, key, sign);
-      });
-      return marker;
-    };
 
     const layer: Layer = {
       polys,
@@ -143,18 +148,25 @@ export class FieldLayers {
   }
 
   /**
-   * Toggles the on-map rotation arrow and +/- steppers. The centre marker stays
-   * so the field can still be dragged, and the sidebar controls are unaffected.
+   * Toggles the on-map rotation arrow and +/- steppers, and swaps the panels
+   * to their black presentation look. The centre marker stays so the field can
+   * still be dragged, and the sidebar controls are unaffected.
    */
   setHandlesVisible(visible: boolean) {
+    if (visible === this.handlesVisible) return;
     this.handlesVisible = visible;
-    this.layers.forEach((layer) => this.applyHandleVisibility(layer));
+    this.layers.forEach((layer, id) => {
+      this.applyHandleVisibility(layer);
+      const field = this.fields.get(id);
+      if (!field) return;
+      layer.polys.forEach((p) => p.remove());
+      layer.polys = this.buildPanelPolys(field);
+    });
   }
 
   private applyHandleVisibility(layer: Layer) {
-    const target = this.handlesVisible ? this.map : null;
-    layer.rotHandle.setMap(target);
-    Object.values(layer.steppers).forEach((m) => m.setMap(target));
+    layer.rotHandle.setVisible(this.handlesVisible);
+    Object.values(layer.steppers).forEach((m) => m.setVisible(this.handlesVisible));
   }
 
   /**
@@ -167,13 +179,13 @@ export class FieldLayers {
     const layer = this.layers.get(field.id);
     if (!layer) return;
 
-    layer.polys.forEach((p) => p.setMap(null));
+    layer.polys.forEach((p) => p.remove());
     layer.polys = this.buildPanelPolys(field);
 
     if (!opts.skipCenter) layer.center.setPosition({ lat: field.lat, lng: field.lng });
     if (!opts.skipRotHandle) {
       layer.rotHandle.setPosition(rotHandlePos(field, this.spec));
-      layer.rotHandle.setIcon(this.rotIcon(field.rotation));
+      layer.rotHandle.setIcon(rotIcon(field.rotation));
     }
 
     const eh = edgeHandlePositions(field, this.spec);
@@ -186,10 +198,10 @@ export class FieldLayers {
   remove(id: string) {
     const layer = this.layers.get(id);
     if (layer) {
-      layer.polys.forEach((p) => p.setMap(null));
-      layer.center.setMap(null);
-      layer.rotHandle.setMap(null);
-      Object.values(layer.steppers).forEach((m) => m.setMap(null));
+      layer.polys.forEach((p) => p.remove());
+      layer.center.remove();
+      layer.rotHandle.remove();
+      Object.values(layer.steppers).forEach((m) => m.remove());
       this.layers.delete(id);
     }
     this.fields.delete(id);
@@ -200,31 +212,16 @@ export class FieldLayers {
   }
 
   private buildPanelPolys(field: Field) {
-    return fieldPanelCorners(field, this.spec).map((corners) => {
-      const poly = new google.maps.Polygon({
+    const style = this.handlesVisible ? PANEL_STYLE.editing : PANEL_STYLE.presenting;
+    return fieldPanelCorners(field, this.spec).map((corners) =>
+      this.map.addPolygon({
         paths: corners,
-        strokeColor: 'rgba(0,29,61,0.5)',
+        strokeColor: style.stroke,
         strokeWeight: 0.8,
-        fillColor: '#FFBE00',
-        fillOpacity: 0.85,
-        map: this.map,
-        clickable: true,
-        zIndex: 3,
-      });
-      poly.addListener('click', () => this.handlers.onSelect(field.id));
-      return poly;
-    });
-  }
-
-  private rotIcon(rotation: number): google.maps.Symbol {
-    return {
-      path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-      scale: 4.5,
-      rotation,
-      fillColor: '#FFBE00',
-      fillOpacity: 1,
-      strokeColor: '#001D3D',
-      strokeWeight: 1.5,
-    };
+        fillColor: style.fill,
+        fillOpacity: this.handlesVisible ? 0.85 : 0.95,
+        onClick: () => this.handlers.onSelect(field.id),
+      }),
+    );
   }
 }

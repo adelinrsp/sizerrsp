@@ -15,12 +15,41 @@ Ne fait que ça, volontairement :
    mode « délimitation estimée » et le placement reste entièrement manuel.
 3. **Placement des panneaux** — grilles déplaçables, orientables, redimensionnables
    directement sur la carte ou depuis le panneau latéral. Le bouton « Poignées », en bas
-   à droite, masque la flèche de rotation et les boutons + / − pour une vue nette à
-   montrer au client ; le champ reste déplaçable par son point central.
+   à droite, bascule en vue client : la flèche de rotation et les boutons + / −
+   disparaissent et les panneaux passent en noir, pour une vue proche du rendu installé ;
+   le champ reste déplaçable par son point central.
 4. **Export** — plan de toiture en PNG via Maps Static API.
 
 Le formulaire de simulation en 5 étapes, la liste des simulations, les calculs de
 production/ROI et les liens de partage du prototype ont été retirés.
+
+## Deux piles cartographiques
+
+L'app tourne au choix sur Google ou sur une pile entièrement libre et sans clé, choisie
+par `NEXT_PUBLIC_MAP_PROVIDER` :
+
+| | `google` | `osm` |
+|---|---|---|
+| Carte | Maps JavaScript API | Leaflet + OpenStreetMap (plan) / Esri World Imagery (satellite) |
+| Recherche d'adresse | Places Autocomplete | API Adresse (BAN), `api-adresse.data.gouv.fr` |
+| Géocodage | Geocoding API | inutile — la BAN renvoie les coordonnées avec la suggestion |
+| Analyse du toit | Solar API | **aucun équivalent** — placement 100 % manuel |
+| Export PNG | Maps Static API | tuiles proxifiées par `/api/tiles`, composées sur `<canvas>` |
+| Clés requises | deux | aucune |
+
+**`google` est le défaut** : variable vide ou absente = pile Google. Un déploiement à qui
+il manque une clé doit échouer visiblement plutôt que servir discrètement OpenStreetMap en
+production. Le mode libre est donc explicite, `NEXT_PUBLIC_MAP_PROVIDER=osm`.
+
+Le mode `osm` sert au développement et à la démonstration. Il n'apporte pas d'analyse de
+toiture : le bandeau « Placement manuel » remplace le résultat Solar, les panneaux gardent
+les dimensions par défaut (1,95 × 1,13 m, 500 Wc) et le premier champ est orienté plein
+sud. Vérifiez les conditions d'utilisation d'Esri et d'OpenStreetMap avant tout usage
+au-delà des tests.
+
+Tout passe par `lib/map/` : `MapProvider` / `MapHandle` / `MarkerHandle` décrivent le
+strict minimum dont l'app a besoin, et `fieldLayers.ts` ne connaît que ces interfaces. Les
+deux implémentations vivent dans `googleProvider.ts` et `leafletProvider.ts`.
 
 ## Clés Google — le point important
 
@@ -58,6 +87,9 @@ npm run dev                  # http://localhost:4173
 Pour que la clé navigateur fonctionne en local, ajoutez `http://localhost:4173/*` à ses
 référents autorisés.
 
+Sans clé sous la main, mettez `NEXT_PUBLIC_MAP_PROVIDER=osm` : tout fonctionne hormis
+l'analyse de toiture.
+
 ## Déploiement Netlify
 
 La configuration est dans `netlify.toml` : `@netlify/plugin-nextjs` transforme les routes
@@ -78,6 +110,7 @@ Dans les deux cas, avant le premier build, renseignez les variables d'environnem
 
 | Variable | Valeur |
 |---|---|
+| `NEXT_PUBLIC_MAP_PROVIDER` | `google` (facultatif, c'est le défaut) |
 | `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` | clé navigateur |
 | `GOOGLE_MAPS_SERVER_KEY` | clé serveur |
 
@@ -99,11 +132,15 @@ app/
   api/places/autocomplete/  proxy Places (clé serveur)
   api/geocode/              placeId → lat/lng
   api/solar/                buildingInsights, 200 + available:false hors couverture
-  api/staticmap/            construit l'URL Static Maps et renvoie le PNG
+  api/staticmap/            construit l'URL Static Maps et renvoie le PNG (google)
+  api/tiles/                proxy de tuiles aériennes pour l'export canvas (osm)
 lib/
   geo.ts                    géométrie des grilles de panneaux (pur, testable)
-  fieldLayers.ts            overlays Google Maps, piloté impérativement
-  mapsLoader.ts             injection du script Maps, une seule fois
+  fieldLayers.ts            overlays de la carte, piloté impérativement
+  map/                      abstraction carte + implémentations google et leaflet
+  export/canvasExport.ts    PNG composé dans le navigateur (osm)
+  server/ban.ts             recherche d'adresse via l'API Adresse (osm)
+  mapsLoader.ts             injection du script Maps, une seule fois (google)
 components/
   SolarSizer.tsx            état + orchestration
   AddressSearch.tsx         écran de recherche

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { badRequest, configError, rateLimit, serverKey, tooManyRequests } from '@/lib/server/google';
 import { fieldOutline, fieldPanelCorners, totalPanels } from '@/lib/geo';
+import { resolveProvider } from '@/lib/map/provider';
 import type { Field, LatLng, PanelSpec } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -29,6 +30,11 @@ type Body = {
 
 export async function POST(req: Request) {
   if (!rateLimit(req, 20)) return tooManyRequests();
+
+  // The OSM stack composes its PNG in the browser instead; see lib/export.
+  if (resolveProvider() === 'osm') {
+    return badRequest('Export Static Maps indisponible hors du provider Google.');
+  }
 
   let body: Body;
   try {

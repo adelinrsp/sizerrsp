@@ -21,6 +21,12 @@ export type PanelSpec = {
 export type AddressSuggestion = {
   placeId: string;
   label: string;
+  /**
+   * Set when the provider returns coordinates with the suggestion itself
+   * (the French BAN does), letting the client skip the geocoding round-trip.
+   */
+  lat?: number;
+  lng?: number;
 };
 
 export type SelectedAddress = AddressSuggestion & {

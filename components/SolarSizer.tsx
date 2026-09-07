@@ -6,10 +6,12 @@ import CompassRose from './CompassRose';
 import EditorSidebar from './EditorSidebar';
 import HandlesToggle from './HandlesToggle';
 import Topbar from './Topbar';
+import { exportPlanPng } from '@/lib/export/canvasExport';
 import { FieldLayers } from '@/lib/fieldLayers';
 import { DEFAULT_PANEL_SPEC, clampGridSide } from '@/lib/geo';
-import { loadGoogleMaps } from '@/lib/mapsLoader';
-import { FRANCE_CENTER, FRANCE_ZOOM, ROADMAP_STYLE, ROOF_ZOOM } from '@/lib/mapStyle';
+import { mapProvider, resolveProvider } from '@/lib/map';
+import type { MapHandle } from '@/lib/map/types';
+import { FRANCE_CENTER, FRANCE_ZOOM, ROOF_ZOOM } from '@/lib/mapStyle';
 import type {
   AddressSuggestion,
   Field,
@@ -23,6 +25,8 @@ import type {
 const PAN_SETTLE_MS = 900;
 /** Half the sidebar width, so the roof isn't hidden behind the panel. */
 const SIDEBAR_OFFSET_PX = -170;
+
+const PROVIDER = resolveProvider();
 
 export default function SolarSizer() {
   const [view, setView] = useState<'map' | 'editor'>('map');
@@ -39,7 +43,7 @@ export default function SolarSizer() {
   const [mapError, setMapError] = useState<string | null>(null);
 
   const mapDivRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<google.maps.Map | null>(null);
+  const mapRef = useRef<MapHandle | null>(null);
   const layersRef = useRef<FieldLayers | null>(null);
   const panTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Mirrors `fields` so map drag handlers never read a stale closure. */
@@ -70,23 +74,21 @@ export default function SolarSizer() {
   // the search screen and the editor never re-instantiates it.
   useEffect(() => {
     let cancelled = false;
+    const container = mapDivRef.current;
+    if (!container) return;
 
-    loadGoogleMaps()
-      .then((maps) => {
-        if (cancelled || !mapDivRef.current || mapRef.current) return;
-
-        const map = new maps.Map(mapDivRef.current, {
-          center: FRANCE_CENTER,
-          zoom: FRANCE_ZOOM,
-          mapTypeId: 'roadmap',
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: false,
-          zoomControl: true,
-          zoomControlOptions: { position: maps.ControlPosition.RIGHT_BOTTOM },
-          gestureHandling: 'greedy',
-          styles: ROADMAP_STYLE,
-        });
+    mapProvider()
+      .createMap(container, {
+        center: FRANCE_CENTER,
+        zoom: FRANCE_ZOOM,
+        basemap: 'roadmap',
+      })
+      .then((map) => {
+        // The effect may already have been torn down while the map was loading.
+        if (cancelled) {
+          map.destroy();
+          return;
+        }
         mapRef.current = map;
 
         layersRef.current = new FieldLayers(map, specRef.current, {
@@ -106,6 +108,9 @@ export default function SolarSizer() {
     return () => {
       cancelled = true;
       if (panTimer.current) clearTimeout(panTimer.current);
+      layersRef.current = null;
+      mapRef.current?.destroy();
+      mapRef.current = null;
     };
   }, [patchField]);
 
@@ -118,16 +123,20 @@ export default function SolarSizer() {
     layersRef.current?.setHandlesVisible(handlesVisible);
   }, [handlesVisible]);
 
+  function applyFallbackSolar() {
+    setPanelSpec(DEFAULT_PANEL_SPEC);
+    roofAzimuthRef.current = 180;
+    setSolarSource('fallback');
+    setSolarMaxPanels(0);
+  }
+
   async function fetchSolar(lat: number, lng: number) {
     try {
       const res = await fetch(`/api/solar?lat=${lat}&lng=${lng}`);
       const data = await res.json();
 
       if (!data.available) {
-        setPanelSpec(DEFAULT_PANEL_SPEC);
-        roofAzimuthRef.current = 180;
-        setSolarSource('fallback');
-        setSolarMaxPanels(0);
+        applyFallbackSolar();
         return;
       }
 
@@ -143,13 +152,21 @@ export default function SolarSizer() {
       setSolarSource('api');
       setSolarMaxPanels(data.maxArrayPanelsCount || 0);
     } catch {
-      setPanelSpec(DEFAULT_PANEL_SPEC);
-      roofAzimuthRef.current = 180;
-      setSolarSource('fallback');
-      setSolarMaxPanels(0);
+      applyFallbackSolar();
     } finally {
       setSolarLoading(false);
     }
+  }
+
+  /** BAN suggestions arrive with coordinates; Google place ids need a lookup. */
+  async function resolveCoords(suggestion: AddressSuggestion) {
+    if (suggestion.lat !== undefined && suggestion.lng !== undefined) {
+      return { lat: suggestion.lat, lng: suggestion.lng };
+    }
+    const res = await fetch(`/api/geocode?placeId=${encodeURIComponent(suggestion.placeId)}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Géocodage impossible.');
+    return { lat: data.lat as number, lng: data.lng as number };
   }
 
   async function handleSelectAddress(suggestion: AddressSuggestion) {
@@ -165,11 +182,7 @@ export default function SolarSizer() {
     setSolarMaxPanels(0);
 
     try {
-      const res = await fetch(`/api/geocode?placeId=${encodeURIComponent(suggestion.placeId)}`);
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Géocodage impossible.');
-
-      const { lat, lng } = data;
+      const { lat, lng } = await resolveCoords(suggestion);
       setAddress({ ...suggestion, lat, lng });
 
       const map = mapRef.current;
@@ -178,7 +191,7 @@ export default function SolarSizer() {
         return;
       }
 
-      map.setMapTypeId('satellite');
+      map.setBasemap('satellite');
       map.setZoom(ROOF_ZOOM);
       map.panTo({ lat, lng });
 
@@ -198,7 +211,7 @@ export default function SolarSizer() {
     layersRef.current?.clearAll();
     const map = mapRef.current;
     if (map) {
-      map.setMapTypeId('roadmap');
+      map.setBasemap('roadmap');
       map.setZoom(FRANCE_ZOOM);
       map.panTo(FRANCE_CENTER);
     }
@@ -216,15 +229,13 @@ export default function SolarSizer() {
   }
 
   function handleAddField() {
-    const map = mapRef.current;
-    if (!map) return;
-    const center = map.getCenter();
+    const center = mapRef.current?.getCenter();
     if (!center) return;
 
     const field: Field = {
       id: `f${Date.now().toString(36)}`,
-      lat: center.lat(),
-      lng: center.lng(),
+      lat: center.lat,
+      lng: center.lng,
       rows: 4,
       cols: 6,
       rotation: roofAzimuthRef.current,
@@ -251,6 +262,23 @@ export default function SolarSizer() {
     if (field) patchField(selectedFieldId, { [key]: clampGridSide(field[key] + delta) });
   }
 
+  function downloadBlob(blob: Blob) {
+    const slug = (address?.label || 'export')
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase()
+      .slice(0, 60);
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `plan-toiture-${slug}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
   async function handleExport() {
     const map = mapRef.current;
     const center = map?.getCenter();
@@ -260,16 +288,23 @@ export default function SolarSizer() {
     setExportBusy(true);
     setExportError(null);
 
+    const payload = {
+      center,
+      zoom,
+      fields: fieldsRef.current,
+      panelSpec: specRef.current,
+    };
+
     try {
+      if (PROVIDER === 'osm') {
+        downloadBlob(await exportPlanPng(payload));
+        return;
+      }
+
       const res = await fetch('/api/staticmap', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          center: { lat: center.lat(), lng: center.lng() },
-          zoom,
-          fields: fieldsRef.current,
-          panelSpec: specRef.current,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -278,21 +313,7 @@ export default function SolarSizer() {
         return;
       }
 
-      const slug = (address?.label || 'export')
-        .replace(/[^a-z0-9]+/gi, '-')
-        .replace(/^-|-$/g, '')
-        .toLowerCase()
-        .slice(0, 60);
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `plan-toiture-${slug}.png`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      downloadBlob(await res.blob());
     } catch (e) {
       setExportError(e instanceof Error ? e.message : 'Export impossible.');
     } finally {

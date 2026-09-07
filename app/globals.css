@@ -60,3 +60,9 @@ textarea {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Leaflet's default div icon paints a white box; our markers are bare SVG. */
+.leaflet-div-icon.ss-marker {
+  background: transparent;
+  border: none;
+}

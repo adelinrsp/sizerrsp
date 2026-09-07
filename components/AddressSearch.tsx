@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { resolveProvider } from '@/lib/map/provider';
 import type { AddressSuggestion } from '@/lib/types';
 
 type Props = {
@@ -8,6 +9,15 @@ type Props = {
 };
 
 const DEBOUNCE_MS = 320;
+
+/** Sources are swapped wholesale with the map provider, so the credits follow. */
+const IS_OSM = resolveProvider() === 'osm';
+const SUBTITLE = IS_OSM
+  ? 'Entrez une adresse pour placer les panneaux sur la vue aérienne.'
+  : 'Entrez une adresse pour analyser le toit via Google Solar API.';
+const CREDITS = IS_OSM
+  ? 'OpenStreetMap · Esri World Imagery · API Adresse (BAN)'
+  : 'Google Maps · Places API · Solar API';
 
 export default function AddressSearch({ onSelect }: Props) {
   const [query, setQuery] = useState('');
@@ -120,7 +130,7 @@ export default function AddressSearch({ onSelect }: Props) {
             Où installer les panneaux ?
           </h1>
           <p style={{ fontSize: 14, color: 'var(--ink-muted)', margin: 0 }}>
-            Entrez une adresse pour analyser le toit via Google Solar API.
+            {SUBTITLE}
           </p>
         </div>
 
@@ -246,7 +256,7 @@ export default function AddressSearch({ onSelect }: Props) {
               margin: '16px 0 0',
             }}
           >
-            Google Maps · Places API · Solar API
+            {CREDITS}
           </p>
         )}
       </div>

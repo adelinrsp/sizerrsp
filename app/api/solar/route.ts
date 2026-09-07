@@ -6,6 +6,7 @@ import {
   serverKey,
   tooManyRequests,
 } from '@/lib/server/google';
+import { resolveProvider } from '@/lib/map/provider';
 
 export const runtime = 'nodejs';
 
@@ -13,9 +14,19 @@ export const runtime = 'nodejs';
  * Wraps Solar API `buildingInsights:findClosest`. A miss here is normal — large
  * parts of France are outside coverage — so an unavailable roof returns 200 with
  * `{ available: false }` and the client falls back to manual placement.
+ *
+ * There is no keyless equivalent to Solar API, so the OSM stack always reports
+ * unavailable and the whole app runs on that same manual path.
  */
 export async function GET(req: Request) {
   if (!rateLimit(req, 30)) return tooManyRequests();
+
+  if (resolveProvider() === 'osm') {
+    return NextResponse.json({
+      available: false,
+      reason: 'Analyse de toit indisponible sans Google Solar API.',
+    });
+  }
 
   const params = new URL(req.url).searchParams;
   const lat = Number(params.get('lat'));

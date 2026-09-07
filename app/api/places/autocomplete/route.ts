@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { banAutocomplete } from '@/lib/server/ban';
 import {
   configError,
   rateLimit,
@@ -6,6 +7,7 @@ import {
   tooManyRequests,
   upstreamError,
 } from '@/lib/server/google';
+import { resolveProvider } from '@/lib/map/provider';
 import type { AddressSuggestion } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -22,6 +24,14 @@ export async function GET(req: Request) {
 
   const q = new URL(req.url).searchParams.get('q')?.trim();
   if (!q || q.length < 2) return NextResponse.json({ suggestions: [] });
+
+  if (resolveProvider() === 'osm') {
+    try {
+      return NextResponse.json({ suggestions: await banAutocomplete(q) });
+    } catch (e) {
+      return upstreamError(e instanceof Error ? e.message : 'API Adresse injoignable.');
+    }
+  }
 
   let key: string;
   try {
